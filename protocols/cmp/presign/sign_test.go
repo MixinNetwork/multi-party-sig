@@ -35,10 +35,6 @@ func init() {
 	pl := pool.NewPool(0)
 	defer pl.TearDown()
 	configs, partyIDs = test.GenerateConfig(group, N, T, source, pl)
-	for id, c := range configs {
-		configs[id], _ = c.DeriveBIP32(0)
-	}
-
 	messageHash = make([]byte, 64)
 	sha3.ShakeSum128(messageHash, []byte("hello"))
 }
