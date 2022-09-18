@@ -41,22 +41,7 @@ func Keygen(group curve.Curve, selfID party.ID, participants []party.ID, thresho
 		Threshold:        threshold,
 		Group:            group,
 	}
-	return keygen.Start(info, pl, nil)
-}
-
-// Refresh allows the parties to refresh all existing cryptographic keys from a previously generated Config.
-// The group's ECDSA public key remains the same, but any previous shares are rendered useless.
-// Returns *cmp.Config if successful.
-func Refresh(config *Config, pl *pool.Pool) protocol.StartFunc {
-	info := round.Info{
-		ProtocolID:       "cmp/refresh-threshold",
-		FinalRoundNumber: keygen.Rounds,
-		SelfID:           config.ID,
-		PartyIDs:         config.PartyIDs(),
-		Threshold:        config.Threshold,
-		Group:            config.Group,
-	}
-	return keygen.Start(info, pl, config)
+	return keygen.Start(info, pl)
 }
 
 // Sign generates an ECDSA signature for `messageHash` among the given `signers`.

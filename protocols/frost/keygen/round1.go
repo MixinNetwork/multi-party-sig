@@ -15,7 +15,8 @@ import (
 )
 
 // This round corresponds with the steps 1-4 of Round 1, Figure 1 in the Frost paper:
-//   https://eprint.iacr.org/2020/852.pdf
+//
+//	https://eprint.iacr.org/2020/852.pdf
 type round1 struct {
 	*round.Helper
 	// taproot indicates whether or not to make taproot compatible keys.
@@ -31,8 +32,6 @@ type round1 struct {
 	//
 	// Alternatively, t + 1 participants are needed to make a signature.
 	threshold int
-	// refresh indicates whether or not we're doing a refresh instead of a key-generation.
-	refresh bool
 	// These fields are set to accomodate both key-generation, in which case they'll
 	// take on identity values, and refresh, in which case their values are meaningful.
 	// These values should be modifiable.
@@ -59,7 +58,6 @@ func (r *round1) StoreMessage(round.Message) error { return nil }
 // The overall goal of this round is to generate a secret value, create a polynomial
 // sharing of that value, and then send commitments to these values.
 func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
-	group := r.Group()
 	// These steps come from Figure 1, Round 1 of the Frost paper.
 
 	// 1. "Every participant P_i samples t + 1 random values (aᵢ₀, ..., aᵢₜ)) <-$ Z/(q)
@@ -69,13 +67,8 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// Note: I've adjusted the thresholds in this quote to reflect our convention
 	// that t + 1 participants are needed to create a signature.
 
-	// Refresh: Instead of creating a new secret, instead use 0, so that our result doesn't change.
-	a_i0 := group.NewScalar()
-	a_i0_times_G := group.NewPoint()
-	if !r.refresh {
-		a_i0 = sample.Scalar(rand.Reader, r.Group())
-		a_i0_times_G = a_i0.ActOnBase()
-	}
+	a_i0 := sample.Scalar(rand.Reader, r.Group())
+	a_i0_times_G := a_i0.ActOnBase()
 	f_i := polynomial.NewPolynomial(r.Group(), r.threshold, a_i0)
 
 	// 2. "Every Pᵢ computes a proof of knowledge to the corresponding secret aᵢ₀
@@ -93,11 +86,7 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// At this point, we've already hashed context inside of helper, so we just
 	// add in our own ID, and then we're good to go.
 
-	// Refresh: Don't create a proof.
-	var Sigma_i *zksch.Proof
-	if !r.refresh {
-		Sigma_i = zksch.NewProof(r.Helper.HashForID(r.SelfID()), a_i0_times_G, a_i0, nil)
-	}
+	Sigma_i := zksch.NewProof(r.Helper.HashForID(r.SelfID()), a_i0_times_G, a_i0, nil)
 
 	// 3. "Every participant Pᵢ computes a public comment Φᵢ = <ϕᵢ₀, ..., ϕᵢₜ>
 	// where ϕᵢⱼ = aᵢⱼ * G."

@@ -1,7 +1,6 @@
 package frost
 
 import (
-	"bytes"
 	"fmt"
 	"sync"
 	"testing"
@@ -25,18 +24,9 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.IsType(t, &Config{}, r)
 	c0 := r.(*Config)
 
-	h, err = protocol.NewMultiHandler(Refresh(c0, ids), nil)
-	require.NoError(t, err)
-	test.HandlerLoop(id, h, n)
-	r, err = h.Result()
-	require.NoError(t, err)
-	require.IsType(t, &Config{}, r)
-	c := r.(*Config)
-	require.True(t, c0.PublicKey.Equal(c.PublicKey))
-
 	h, err = protocol.NewMultiHandler(KeygenTaproot(id, ids, threshold), nil)
 	require.NoError(t, err)
-	test.HandlerLoop(c.ID, h, n)
+	test.HandlerLoop(c0.ID, h, n)
 
 	r, err = h.Result()
 	require.NoError(t, err)
@@ -44,37 +34,26 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 
 	c0Taproot := r.(*TaprootConfig)
 
-	h, err = protocol.NewMultiHandler(RefreshTaproot(c0Taproot, ids), nil)
+	h, err = protocol.NewMultiHandler(Sign(c0, ids, message), nil)
 	require.NoError(t, err)
-	test.HandlerLoop(c.ID, h, n)
-
-	r, err = h.Result()
-	require.NoError(t, err)
-	require.IsType(t, &TaprootConfig{}, r)
-
-	cTaproot := r.(*TaprootConfig)
-	require.True(t, bytes.Equal(c0Taproot.PublicKey, cTaproot.PublicKey))
-
-	h, err = protocol.NewMultiHandler(Sign(c, ids, message), nil)
-	require.NoError(t, err)
-	test.HandlerLoop(c.ID, h, n)
+	test.HandlerLoop(c0.ID, h, n)
 
 	signResult, err := h.Result()
 	require.NoError(t, err)
 	require.IsType(t, Signature{}, signResult)
 	signature := signResult.(Signature)
-	assert.True(t, signature.Verify(c.PublicKey, message))
+	assert.True(t, signature.Verify(c0.PublicKey, message))
 
-	h, err = protocol.NewMultiHandler(SignTaproot(cTaproot, ids, message), nil)
+	h, err = protocol.NewMultiHandler(SignTaproot(c0Taproot, ids, message), nil)
 	require.NoError(t, err)
 
-	test.HandlerLoop(c.ID, h, n)
+	test.HandlerLoop(c0.ID, h, n)
 
 	signResult, err = h.Result()
 	require.NoError(t, err)
 	require.IsType(t, taproot.Signature{}, signResult)
 	taprootSignature := signResult.(taproot.Signature)
-	assert.True(t, cTaproot.PublicKey.Verify(taprootSignature, message))
+	assert.True(t, c0Taproot.PublicKey.Verify(taprootSignature, message))
 }
 
 func TestFrost(t *testing.T) {

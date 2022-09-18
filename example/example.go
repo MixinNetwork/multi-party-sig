@@ -44,21 +44,6 @@ func CMPKeygen(id party.ID, ids party.IDSlice, threshold int, n *test.Network, p
 	return r.(*cmp.Config), nil
 }
 
-func CMPRefresh(c *cmp.Config, n *test.Network, pl *pool.Pool) (*cmp.Config, error) {
-	hRefresh, err := protocol.NewMultiHandler(cmp.Refresh(c, pl), nil)
-	if err != nil {
-		return nil, err
-	}
-	test.HandlerLoop(c.ID, hRefresh, n)
-
-	r, err := hRefresh.Result()
-	if err != nil {
-		return nil, err
-	}
-
-	return r.(*cmp.Config), nil
-}
-
 func CMPSign(c *cmp.Config, m []byte, signers party.IDSlice, n *test.Network, pl *pool.Pool) error {
 	h, err := protocol.NewMultiHandler(cmp.Sign(c, signers, m, pl), nil)
 	if err != nil {
@@ -193,12 +178,6 @@ func All(id party.ID, ids party.IDSlice, threshold int, message []byte, n *test.
 		return err
 	}
 
-	// CMP REFRESH
-	refreshConfig, err := CMPRefresh(keygenConfig, n, pl)
-	if err != nil {
-		return err
-	}
-
 	// FROST KEYGEN
 	frostResult, err := FrostKeygen(id, ids, threshold, n)
 	if err != nil {
@@ -218,19 +197,19 @@ func All(id party.ID, ids party.IDSlice, threshold int, message []byte, n *test.
 	}
 
 	// CMP SIGN
-	err = CMPSign(refreshConfig, message, signers, n, pl)
+	err = CMPSign(keygenConfig, message, signers, n, pl)
 	if err != nil {
 		return err
 	}
 
 	// CMP PRESIGN
-	preSignature, err := CMPPreSign(refreshConfig, signers, n, pl)
+	preSignature, err := CMPPreSign(keygenConfig, signers, n, pl)
 	if err != nil {
 		return err
 	}
 
 	// CMP PRESIGN ONLINE
-	err = CMPPreSignOnline(refreshConfig, preSignature, message, n, pl)
+	err = CMPPreSignOnline(keygenConfig, preSignature, message, n, pl)
 	if err != nil {
 		return err
 	}

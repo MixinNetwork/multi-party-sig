@@ -13,7 +13,8 @@ import (
 )
 
 // This round corresponds with steps 5 of Round 1, 1 of Round 2, Figure 1 in the Frost paper:
-//   https://eprint.iacr.org/2020/852.pdf
+//
+//	https://eprint.iacr.org/2020/852.pdf
 type round2 struct {
 	*round1
 	// f_i is the polynomial this participant uses to share their contribution to
@@ -53,7 +54,7 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// check nil
-	if (!r.refresh && !body.Sigma_i.IsValid()) || body.Phi_i == nil {
+	if !body.Sigma_i.IsValid() || body.Phi_i == nil {
 		return round.ErrNilFields
 	}
 
@@ -76,15 +77,8 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	// produced in the previous round. Note how we do the same hash cloning,
 	// but this time with the ID of the message sender.
 
-	// Refresh: There's no proof to verify, but instead check that the constant is identity
-	if r.refresh {
-		if !body.Phi_i.Constant().IsIdentity() {
-			return fmt.Errorf("party %s sent a non-zero constant while refreshing", from)
-		}
-	} else {
-		if !body.Sigma_i.Verify(r.Helper.HashForID(from), body.Phi_i.Constant(), nil) {
-			return fmt.Errorf("failed to verify Schnorr proof for party %s", from)
-		}
+	if !body.Sigma_i.Verify(r.Helper.HashForID(from), body.Phi_i.Constant(), nil) {
+		return fmt.Errorf("failed to verify Schnorr proof for party %s", from)
 	}
 
 	r.Phi[from] = body.Phi_i

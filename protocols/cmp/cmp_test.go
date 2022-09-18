@@ -26,15 +26,6 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.IsType(t, &Config{}, r)
 	c := r.(*Config)
 
-	h, err = protocol.NewMultiHandler(Refresh(c, pl), nil)
-	require.NoError(t, err)
-	test.HandlerLoop(c.ID, h, n)
-
-	r, err = h.Result()
-	require.NoError(t, err)
-	require.IsType(t, &Config{}, r)
-	c = r.(*Config)
-
 	h, err = protocol.NewMultiHandler(Sign(c, ids, message, pl), nil)
 	require.NoError(t, err)
 	test.HandlerLoop(c.ID, h, n)
