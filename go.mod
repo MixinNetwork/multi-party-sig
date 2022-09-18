@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/cronokirby/safenum v0.29.0
-	github.com/decred/dcrd/dcrec/secp256k1/v3 v3.0.0
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0
 	github.com/fxamacker/cbor/v2 v2.4.0
 	github.com/stretchr/testify v1.8.0
 	github.com/zeebo/blake3 v0.2.3

@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/cronokirby/safenum"
-	"github.com/decred/dcrd/dcrec/secp256k1/v3"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 var secp256k1BaseX, secp256k1BaseY secp256k1.FieldVal
