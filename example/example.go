@@ -62,44 +62,6 @@ func CMPSign(c *cmp.Config, m []byte, signers party.IDSlice, n *test.Network, pl
 	return nil
 }
 
-func CMPPreSign(c *cmp.Config, signers party.IDSlice, n *test.Network, pl *pool.Pool) (*ecdsa.PreSignature, error) {
-	h, err := protocol.NewMultiHandler(cmp.Presign(c, signers, pl), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	test.HandlerLoop(c.ID, h, n)
-
-	signResult, err := h.Result()
-	if err != nil {
-		return nil, err
-	}
-
-	preSignature := signResult.(*ecdsa.PreSignature)
-	if err = preSignature.Validate(); err != nil {
-		return nil, errors.New("failed to verify cmp presignature")
-	}
-	return preSignature, nil
-}
-
-func CMPPreSignOnline(c *cmp.Config, preSignature *ecdsa.PreSignature, m []byte, n *test.Network, pl *pool.Pool) error {
-	h, err := protocol.NewMultiHandler(cmp.PresignOnline(c, preSignature, m, pl), nil)
-	if err != nil {
-		return err
-	}
-	test.HandlerLoop(c.ID, h, n)
-
-	signResult, err := h.Result()
-	if err != nil {
-		return err
-	}
-	signature := signResult.(*ecdsa.Signature)
-	if !signature.Verify(c.PublicPoint(), m) {
-		return errors.New("failed to verify cmp signature")
-	}
-	return nil
-}
-
 func FrostKeygen(id party.ID, ids party.IDSlice, threshold int, n *test.Network) (*frost.Config, error) {
 	h, err := protocol.NewMultiHandler(frost.Keygen(curve.Secp256k1{}, id, ids, threshold), nil)
 	if err != nil {
@@ -198,18 +160,6 @@ func All(id party.ID, ids party.IDSlice, threshold int, message []byte, n *test.
 
 	// CMP SIGN
 	err = CMPSign(keygenConfig, message, signers, n, pl)
-	if err != nil {
-		return err
-	}
-
-	// CMP PRESIGN
-	preSignature, err := CMPPreSign(keygenConfig, signers, n, pl)
-	if err != nil {
-		return err
-	}
-
-	// CMP PRESIGN ONLINE
-	err = CMPPreSignOnline(keygenConfig, preSignature, message, n, pl)
 	if err != nil {
 		return err
 	}
