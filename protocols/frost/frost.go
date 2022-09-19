@@ -46,7 +46,7 @@ func EmptyConfig(group curve.Curve) *Config {
 //
 //	https://eprint.iacr.org/2020/852.pdf
 func Keygen(group curve.Curve, selfID party.ID, participants []party.ID, threshold int) protocol.StartFunc {
-	return keygen.StartKeygenCommon(false, group, participants, threshold, selfID, nil)
+	return keygen.StartKeygenCommon(false, group, participants, threshold, selfID)
 }
 
 // KeygenTaproot is like Keygen, but will make Taproot / BIP-340 compatible keys.
@@ -55,7 +55,7 @@ func Keygen(group curve.Curve, selfID party.ID, participants []party.ID, thresho
 //
 // See: https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki#specification
 func KeygenTaproot(selfID party.ID, participants []party.ID, threshold int) protocol.StartFunc {
-	return keygen.StartKeygenCommon(true, curve.Secp256k1{}, participants, threshold, selfID, nil)
+	return keygen.StartKeygenCommon(true, curve.Secp256k1{}, participants, threshold, selfID)
 }
 
 // Sign initiates the protocol for producing a threshold signature, with Frost.

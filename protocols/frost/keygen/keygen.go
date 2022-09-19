@@ -24,7 +24,7 @@ var (
 	_ round.Round = (*round3)(nil)
 )
 
-func StartKeygenCommon(taproot bool, group curve.Curve, participants []party.ID, threshold int, selfID party.ID, verificationShares map[party.ID]curve.Point) protocol.StartFunc {
+func StartKeygenCommon(taproot bool, group curve.Curve, participants []party.ID, threshold int, selfID party.ID) protocol.StartFunc {
 	return func(sessionID []byte) (round.Session, error) {
 		info := round.Info{
 			FinalRoundNumber: protocolRounds,
@@ -44,15 +44,11 @@ func StartKeygenCommon(taproot bool, group curve.Curve, participants []party.ID,
 			return nil, fmt.Errorf("keygen.StartKeygen: %w", err)
 		}
 
-		verificationSharesCopy := make(map[party.ID]curve.Point, len(participants))
-		for k, v := range verificationShares {
-			verificationSharesCopy[k] = v
-		}
-
 		privateShare := group.NewScalar()
 		publicKey := group.NewPoint()
+		verificationShares := make(map[party.ID]curve.Point, len(participants))
 		for _, k := range participants {
-			verificationSharesCopy[k] = group.NewPoint()
+			verificationShares[k] = group.NewPoint()
 		}
 
 		return &round1{
@@ -60,7 +56,7 @@ func StartKeygenCommon(taproot bool, group curve.Curve, participants []party.ID,
 			taproot:            taproot,
 			threshold:          threshold,
 			privateShare:       privateShare,
-			verificationShares: verificationSharesCopy,
+			verificationShares: verificationShares,
 			publicKey:          publicKey,
 		}, nil
 	}
