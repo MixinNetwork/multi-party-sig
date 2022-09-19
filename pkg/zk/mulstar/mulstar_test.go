@@ -8,10 +8,10 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/taurusgroup/multi-party-sig/pkg/hash"
-	"github.com/taurusgroup/multi-party-sig/pkg/math/curve"
-	"github.com/taurusgroup/multi-party-sig/pkg/math/sample"
-	"github.com/taurusgroup/multi-party-sig/pkg/zk"
+	"github.com/MixinNetwork/multi-party-sig/pkg/hash"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"
+	"github.com/MixinNetwork/multi-party-sig/pkg/zk"
 )
 
 func TestMulG(t *testing.T) {

@@ -7,8 +7,8 @@ import (
 
 	"github.com/cronokirby/saferith"
 	"github.com/stretchr/testify/assert"
-	"github.com/taurusgroup/multi-party-sig/pkg/math/sample"
-	"github.com/taurusgroup/multi-party-sig/pkg/pool"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"
+	"github.com/MixinNetwork/multi-party-sig/pkg/pool"
 )
 
 var (

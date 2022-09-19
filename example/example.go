@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/taurusgroup/multi-party-sig/internal/test"
-	"github.com/taurusgroup/multi-party-sig/pkg/ecdsa"
-	"github.com/taurusgroup/multi-party-sig/pkg/math/curve"
-	"github.com/taurusgroup/multi-party-sig/pkg/party"
-	"github.com/taurusgroup/multi-party-sig/pkg/pool"
-	"github.com/taurusgroup/multi-party-sig/pkg/protocol"
-	"github.com/taurusgroup/multi-party-sig/pkg/taproot"
-	"github.com/taurusgroup/multi-party-sig/protocols/cmp"
-	"github.com/taurusgroup/multi-party-sig/protocols/example"
-	"github.com/taurusgroup/multi-party-sig/protocols/frost"
+	"github.com/MixinNetwork/multi-party-sig/internal/test"
+	"github.com/MixinNetwork/multi-party-sig/pkg/ecdsa"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
+	"github.com/MixinNetwork/multi-party-sig/pkg/party"
+	"github.com/MixinNetwork/multi-party-sig/pkg/pool"
+	"github.com/MixinNetwork/multi-party-sig/pkg/protocol"
+	"github.com/MixinNetwork/multi-party-sig/pkg/taproot"
+	"github.com/MixinNetwork/multi-party-sig/protocols/cmp"
+	"github.com/MixinNetwork/multi-party-sig/protocols/example"
+	"github.com/MixinNetwork/multi-party-sig/protocols/frost"
 )
 
 func XOR(id party.ID, ids party.IDSlice, n *test.Network) error {

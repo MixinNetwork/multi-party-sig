@@ -3,15 +3,15 @@ package test
 import (
 	"io"
 
-	"github.com/taurusgroup/multi-party-sig/internal/types"
-	"github.com/taurusgroup/multi-party-sig/pkg/math/curve"
-	"github.com/taurusgroup/multi-party-sig/pkg/math/polynomial"
-	"github.com/taurusgroup/multi-party-sig/pkg/math/sample"
-	"github.com/taurusgroup/multi-party-sig/pkg/paillier"
-	"github.com/taurusgroup/multi-party-sig/pkg/party"
-	"github.com/taurusgroup/multi-party-sig/pkg/pedersen"
-	"github.com/taurusgroup/multi-party-sig/pkg/pool"
-	"github.com/taurusgroup/multi-party-sig/protocols/cmp/config"
+	"github.com/MixinNetwork/multi-party-sig/internal/types"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/polynomial"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"
+	"github.com/MixinNetwork/multi-party-sig/pkg/paillier"
+	"github.com/MixinNetwork/multi-party-sig/pkg/party"
+	"github.com/MixinNetwork/multi-party-sig/pkg/pedersen"
+	"github.com/MixinNetwork/multi-party-sig/pkg/pool"
+	"github.com/MixinNetwork/multi-party-sig/protocols/cmp/config"
 )
 
 // GenerateConfig creates some random configuration for N parties with set threshold T over the group.

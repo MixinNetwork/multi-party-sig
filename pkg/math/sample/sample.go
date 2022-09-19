@@ -6,8 +6,8 @@ import (
 	"math/big"
 
 	"github.com/cronokirby/saferith"
-	"github.com/taurusgroup/multi-party-sig/internal/params"
-	"github.com/taurusgroup/multi-party-sig/pkg/math/curve"
+	"github.com/MixinNetwork/multi-party-sig/internal/params"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 )
 
 const maxIterations = 255
