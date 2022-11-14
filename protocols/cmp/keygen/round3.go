@@ -4,18 +4,20 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cronokirby/saferith"
 	"github.com/MixinNetwork/multi-party-sig/internal/round"
 	"github.com/MixinNetwork/multi-party-sig/internal/types"
 	"github.com/MixinNetwork/multi-party-sig/pkg/hash"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/arith"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/polynomial"
 	"github.com/MixinNetwork/multi-party-sig/pkg/paillier"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	"github.com/MixinNetwork/multi-party-sig/pkg/pedersen"
+	zkfac "github.com/MixinNetwork/multi-party-sig/pkg/zk/fac"
 	zkmod "github.com/MixinNetwork/multi-party-sig/pkg/zk/mod"
 	zkprm "github.com/MixinNetwork/multi-party-sig/pkg/zk/prm"
 	zksch "github.com/MixinNetwork/multi-party-sig/pkg/zk/sch"
+	"github.com/cronokirby/saferith"
 )
 
 var _ round.Round = (*round3)(nil)
@@ -53,6 +55,7 @@ type broadcast3 struct {
 // - verify degree of VSS polynomial Fⱼ "in-the-exponent"
 //   - if keygen, verify Fⱼ(0) != ∞
 //   - if refresh, verify Fⱼ(0) == ∞
+//
 // - validate Paillier
 // - validate Pedersen
 // - validate commitments.
@@ -65,7 +68,7 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// check nil
-	if body.N == nil || body.S == nil || body.T == nil || body.VSSPolynomial == nil {
+	if body.N == nil || body.S == nil || body.T == nil || body.VSSPolynomial == nil || body.SchnorrCommitments == nil {
 		return round.ErrNilFields
 	}
 	// check RID length
@@ -168,9 +171,15 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 		Q:      r.PaillierSecret.Q(),
 	}, h.Clone(), zkprm.Public{N: r.NModulus[r.SelfID()], S: r.S[r.SelfID()], T: r.T[r.SelfID()]}, r.Pool)
 
+	// Prove that the factors of N are relatively large
+	fac := zkfac.NewProof(zkfac.Private{P: r.PaillierSecret.P(), Q: r.PaillierSecret.Q()}, h.Clone(), zkfac.Public{
+		Aux: pedersen.New(arith.ModulusFromFactors(r.PaillierSecret.P(), r.PaillierSecret.Q()), r.S[r.SelfID()], r.T[r.SelfID()]),
+	})
+
 	if err := r.BroadcastMessage(out, &broadcast4{
 		Mod: mod,
 		Prm: prm,
+		Fac: fac,
 	}); err != nil {
 		return r, err
 	}

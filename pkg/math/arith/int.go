@@ -3,8 +3,8 @@ package arith
 import (
 	"math/big"
 
-	"github.com/cronokirby/saferith"
 	"github.com/MixinNetwork/multi-party-sig/internal/params"
+	"github.com/cronokirby/saferith"
 )
 
 // IsValidNatModN checks that ints are all in the range [1,…,N-1] and co-prime to N.
@@ -59,4 +59,12 @@ func IsInIntervalLPrimeEps(n *saferith.Int) bool {
 		return false
 	}
 	return n.TrueLen() <= params.LPrimePlusEpsilon
+}
+
+// IsInIntervalLEpsPlus1RootN returns true if n ∈ [-2¹⁺ˡ⁺ᵉ√N,…,2¹⁺ˡ⁺ᵉ√N], for a Paillier modulus N.
+func IsInIntervalLEpsPlus1RootN(n *saferith.Int) bool {
+	if n == nil {
+		return false
+	}
+	return n.TrueLen() <= 1+params.LPlusEpsilon+(params.BitsIntModN/2)
 }
