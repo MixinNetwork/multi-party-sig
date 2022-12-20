@@ -139,12 +139,9 @@ func (round3) StoreMessage(round.Message) error { return nil }
 // - send proofs and encryption of share for Pⱼ.
 func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// c = ⊕ⱼ cⱼ
-	chainKey := r.PreviousChainKey
-	if chainKey == nil {
-		chainKey = types.EmptyRID()
-		for _, j := range r.PartyIDs() {
-			chainKey.XOR(r.ChainKeys[j])
-		}
+	chainKey := types.EmptyRID()
+	for _, j := range r.PartyIDs() {
+		chainKey.XOR(r.ChainKeys[j])
 	}
 	// RID = ⊕ⱼ RIDⱼ
 	rid := types.EmptyRID()

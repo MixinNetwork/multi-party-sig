@@ -126,9 +126,6 @@ func (r *round4) StoreMessage(msg round.Message) error {
 func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// add all shares to our secret
 	UpdatedSecretECDSA := r.Group().NewScalar()
-	if r.PreviousSecretECDSA != nil {
-		UpdatedSecretECDSA.Set(r.PreviousSecretECDSA)
-	}
 	for _, j := range r.PartyIDs() {
 		UpdatedSecretECDSA.Add(r.ShareReceived[j])
 	}
@@ -149,9 +146,6 @@ func (r *round4) Finalize(out chan<- *round.Message) (round.Session, error) {
 	PublicData := make(map[party.ID]*config.Public, len(r.PartyIDs()))
 	for _, j := range r.PartyIDs() {
 		PublicECDSAShare := ShamirPublicPolynomial.Evaluate(j.Scalar(r.Group()))
-		if r.PreviousPublicSharesECDSA != nil {
-			PublicECDSAShare = PublicECDSAShare.Add(r.PreviousPublicSharesECDSA[j])
-		}
 		PublicData[j] = &config.Public{
 			ECDSA:    PublicECDSAShare,
 			ElGamal:  r.ElGamalPublic[j],

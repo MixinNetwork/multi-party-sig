@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"errors"
 
-	"github.com/cronokirby/saferith"
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/common/types"
 	"github.com/MixinNetwork/multi-party-sig/pkg/hash"
@@ -14,28 +13,13 @@ import (
 	"github.com/MixinNetwork/multi-party-sig/pkg/paillier"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	zksch "github.com/MixinNetwork/multi-party-sig/pkg/zk/sch"
+	"github.com/cronokirby/saferith"
 )
 
 var _ round.Round = (*round1)(nil)
 
 type round1 struct {
 	*round.Helper
-
-	// PreviousSecretECDSA = sk'ᵢ
-	// Contains the previous secret ECDSA key share which is being refreshed
-	// Keygen:  sk'ᵢ = nil
-	// Refresh: sk'ᵢ = sk'ᵢ
-	PreviousSecretECDSA curve.Scalar
-
-	// PreviousPublicSharesECDSA[j] = pk'ⱼ
-	// Keygen:  pk'ⱼ = nil
-	// Refresh: pk'ⱼ = pk'ⱼ
-	PreviousPublicSharesECDSA map[party.ID]curve.Point
-
-	// PreviousChainKey contains the chain key, if we're refreshing
-	//
-	// In that case, we will simply use the previous chain key at the very end.
-	PreviousChainKey types.RID
 
 	// VSSSecret = fᵢ(X)
 	// Polynomial from which the new secret shares are computed.
