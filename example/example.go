@@ -13,22 +13,8 @@ import (
 	"github.com/MixinNetwork/multi-party-sig/pkg/protocol"
 	"github.com/MixinNetwork/multi-party-sig/pkg/taproot"
 	"github.com/MixinNetwork/multi-party-sig/protocols/cmp"
-	"github.com/MixinNetwork/multi-party-sig/protocols/example"
 	"github.com/MixinNetwork/multi-party-sig/protocols/frost"
 )
-
-func XOR(id party.ID, ids party.IDSlice, n *test.Network) error {
-	h, err := protocol.NewMultiHandler(example.StartXOR(id, ids), nil)
-	if err != nil {
-		return err
-	}
-	test.HandlerLoop(id, h, n)
-	_, err = h.Result()
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 func CMPKeygen(id party.ID, ids party.IDSlice, threshold int, n *test.Network, pl *pool.Pool) (*cmp.Config, error) {
 	h, err := protocol.NewMultiHandler(cmp.Keygen(curve.Secp256k1{}, id, ids, threshold, pl), nil)
@@ -127,12 +113,6 @@ func FrostSignTaproot(c *frost.TaprootConfig, id party.ID, m []byte, signers par
 
 func All(id party.ID, ids party.IDSlice, threshold int, message []byte, n *test.Network, wg *sync.WaitGroup, pl *pool.Pool) error {
 	defer wg.Done()
-
-	// XOR
-	err := XOR(id, ids, n)
-	if err != nil {
-		return err
-	}
 
 	// CMP KEYGEN
 	keygenConfig, err := CMPKeygen(id, ids, threshold, n, pl)
