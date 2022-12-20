@@ -3,14 +3,14 @@ package sign
 import (
 	"errors"
 
-	"github.com/cronokirby/saferith"
-	"github.com/MixinNetwork/multi-party-sig/internal/mta"
-	"github.com/MixinNetwork/multi-party-sig/internal/round"
+	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
+	"github.com/MixinNetwork/multi-party-sig/pkg/mta"
 	"github.com/MixinNetwork/multi-party-sig/pkg/paillier"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	zkenc "github.com/MixinNetwork/multi-party-sig/pkg/zk/enc"
 	zklogstar "github.com/MixinNetwork/multi-party-sig/pkg/zk/logstar"
+	"github.com/cronokirby/saferith"
 )
 
 var _ round.Round = (*round2)(nil)

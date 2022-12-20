@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/MixinNetwork/multi-party-sig/internal/params"
+	"github.com/MixinNetwork/multi-party-sig/common/params"
 	"github.com/zeebo/blake3"
 )
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/MixinNetwork/multi-party-sig/internal/params"
+	"github.com/MixinNetwork/multi-party-sig/common/params"
 )
 
 // RID represents a byte slice of whose size equals the security parameter.

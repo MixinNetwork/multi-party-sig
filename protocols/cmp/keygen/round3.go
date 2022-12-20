@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/MixinNetwork/multi-party-sig/internal/round"
-	"github.com/MixinNetwork/multi-party-sig/internal/types"
+	"github.com/MixinNetwork/multi-party-sig/common/round"
+	"github.com/MixinNetwork/multi-party-sig/common/types"
 	"github.com/MixinNetwork/multi-party-sig/pkg/hash"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/arith"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"

@@ -3,7 +3,7 @@ package sign
 import (
 	"errors"
 
-	"github.com/MixinNetwork/multi-party-sig/internal/round"
+	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/pkg/ecdsa"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"

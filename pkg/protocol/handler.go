@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/fxamacker/cbor/v2"
-	"github.com/MixinNetwork/multi-party-sig/internal/round"
+	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/pkg/hash"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 )

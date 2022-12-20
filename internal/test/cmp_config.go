@@ -3,7 +3,7 @@ package test
 import (
 	"io"
 
-	"github.com/MixinNetwork/multi-party-sig/internal/types"
+	"github.com/MixinNetwork/multi-party-sig/common/types"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/polynomial"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"

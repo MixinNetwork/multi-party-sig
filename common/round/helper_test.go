@@ -3,7 +3,7 @@ package round_test
 import (
 	"testing"
 
-	"github.com/MixinNetwork/multi-party-sig/internal/round"
+	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/internal/test"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"

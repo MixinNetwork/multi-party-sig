@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 
-	"github.com/MixinNetwork/multi-party-sig/internal/round"
+	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/polynomial"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"
 	"github.com/MixinNetwork/multi-party-sig/pkg/pool"

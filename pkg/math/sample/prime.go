@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/cronokirby/saferith"
-	"github.com/MixinNetwork/multi-party-sig/internal/params"
+	"github.com/MixinNetwork/multi-party-sig/common/params"
 	"github.com/MixinNetwork/multi-party-sig/pkg/pool"
 )
 
