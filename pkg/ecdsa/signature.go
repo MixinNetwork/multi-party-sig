@@ -2,6 +2,8 @@ package ecdsa
 
 import (
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 )
 
 type Signature struct {
@@ -33,4 +35,20 @@ func (sig Signature) Verify(X curve.Point, hash []byte) bool {
 	R2 := mG.Add(rX)
 	R2 = sInv.Act(R2)
 	return R2.Equal(sig.R)
+}
+
+func (sig *Signature) SerializeDER() []byte {
+	var r secp256k1.ModNScalar
+	b, err := sig.R.MarshalBinary()
+	trunc := r.SetByteSlice(b[1:])
+	if err != nil || trunc {
+		panic(sig)
+	}
+	var s secp256k1.ModNScalar
+	b, err = sig.S.MarshalBinary()
+	trunc = s.SetByteSlice(b)
+	if err != nil || trunc {
+		panic(sig)
+	}
+	return ecdsa.NewSignature(&r, &s).Serialize()
 }
