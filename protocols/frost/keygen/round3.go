@@ -147,7 +147,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		//
 		// We assume that everyone else does the same, so we negate all the verification
 		// shares.
-		YSecp := r.publicKey.(*curve.Secp256k1Point)
+		YSecp := r.publicKey
 		if !YSecp.HasEvenY() {
 			r.privateShare.Negate()
 			for i, y_i := range r.verificationShares {
@@ -156,12 +156,12 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		}
 		secpVerificationShares := make(map[party.ID]curve.Point)
 		for k, v := range r.verificationShares {
-			secpVerificationShares[k] = v.(*curve.Secp256k1Point)
+			secpVerificationShares[k] = v
 		}
 		return r.ResultRound(&TaprootConfig{
 			ID:                 r.SelfID(),
 			Threshold:          r.threshold,
-			PrivateShare:       r.privateShare.(*curve.Secp256k1Scalar),
+			PrivateShare:       r.privateShare,
 			PublicKey:          YSecp.XScalar().Bytes(),
 			VerificationShares: secpVerificationShares,
 		}), nil

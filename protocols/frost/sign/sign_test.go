@@ -102,7 +102,7 @@ func TestSignTaproot(t *testing.T) {
 
 	secret := sample.Scalar(rand.Reader, group)
 	publicPoint := secret.ActOnBase()
-	if !publicPoint.(*curve.Secp256k1Point).HasEvenY() {
+	if !publicPoint.HasEvenY() {
 		secret.Negate()
 	}
 	f := polynomial.NewPolynomial(group, threshold, secret)
@@ -115,12 +115,12 @@ func TestSignTaproot(t *testing.T) {
 
 	privateShares := make(map[party.ID]curve.Scalar, N)
 	for _, id := range partyIDs {
-		privateShares[id] = f.Evaluate(id.Scalar(group)).(*curve.Secp256k1Scalar)
+		privateShares[id] = f.Evaluate(id.Scalar(group))
 	}
 
 	verificationShares := make(map[party.ID]curve.Point, N)
 	for _, id := range partyIDs {
-		verificationShares[id] = privateShares[id].ActOnBase().(*curve.Secp256k1Point)
+		verificationShares[id] = privateShares[id].ActOnBase()
 	}
 
 	var newPublicKey []byte

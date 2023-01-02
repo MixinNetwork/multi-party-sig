@@ -132,6 +132,8 @@ type Point interface {
 	Equal(Point) bool
 	// IsIdentity checks if this is the identity element of this group.
 	IsIdentity() bool
+
+	HasEvenY() bool
 	// XScalar is an optional method, returning the x coordinate of this Point as a Scalar.
 	//
 	// This is used in ECDSA, but isn't available on every curve, necessarily.

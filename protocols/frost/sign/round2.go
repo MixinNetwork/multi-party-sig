@@ -119,7 +119,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		// conditionally negating k = ∑ᵢ (dᵢ + (eᵢ ρᵢ)), which we can accomplish
 		// by negating our dᵢ, eᵢ, if necessary. This entails negating the RShares
 		// as well.
-		RSecp := R.(*curve.Secp256k1Point)
+		RSecp := R
 		if !RSecp.HasEvenY() {
 			r.d_i.Negate()
 			r.e_i.Negate()
