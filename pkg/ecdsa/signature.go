@@ -1,6 +1,8 @@
 package ecdsa
 
 import (
+	"fmt"
+
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
@@ -37,6 +39,36 @@ func (sig Signature) Verify(X curve.Point, hash []byte) bool {
 	return R2.Equal(sig.R)
 }
 
+func ParseSignature(group curve.Curve, b []byte) (*Signature, error) {
+	if len(b) != 65 {
+		return nil, fmt.Errorf("UnmarshalSignature(%x) %d", b, len(b))
+	}
+
+	sig := EmptySignature(group)
+	err := sig.R.UnmarshalBinary(b[:33])
+	if err != nil {
+		return nil, err
+	}
+	err = sig.S.UnmarshalBinary(b[33:])
+	if err != nil {
+		return nil, err
+	}
+
+	return &sig, nil
+}
+
+func (sig *Signature) Serialize() []byte {
+	r, err := sig.R.MarshalBinary()
+	if err != nil {
+		panic(sig)
+	}
+	s, err := sig.S.MarshalBinary()
+	if err != nil {
+		panic(sig)
+	}
+	return append(r, s...)
+}
+
 func (sig *Signature) SerializeDER() []byte {
 	var r secp256k1.ModNScalar
 	b, err := sig.R.MarshalBinary()
@@ -51,4 +83,30 @@ func (sig *Signature) SerializeDER() []byte {
 		panic(sig)
 	}
 	return ecdsa.NewSignature(&r, &s).Serialize()
+}
+
+func (sig *Signature) SerializeEthereum() []byte {
+	rb, err := sig.R.MarshalBinary()
+	if err != nil {
+		panic(sig)
+	}
+	rb[0] = rb[0] - 2
+
+	sb, err := sig.S.MarshalBinary()
+	if err != nil {
+		panic(sig)
+	}
+
+	var ss secp256k1.ModNScalar
+	ss.SetByteSlice(sb)
+	if ss.IsOverHalfOrder() {
+		sb, err = sig.S.Negate().MarshalBinary()
+		if err != nil {
+			panic(err)
+		}
+		rb[0] ^= 0x01
+	}
+
+	out := append(rb[1:], sb...)
+	return append(out, rb[0])
 }

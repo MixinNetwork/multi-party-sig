@@ -136,6 +136,7 @@ type Point interface {
 	//
 	// If you choose not to implement this method, simply return nil.
 	XScalar() Scalar
+	YScalar() Scalar
 }
 
 // MakeInt converts a scalar into an Int.

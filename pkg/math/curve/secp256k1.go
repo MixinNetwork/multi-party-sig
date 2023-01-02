@@ -268,3 +268,10 @@ func (p *Secp256k1Point) XScalar() Scalar {
 	out.value.SetBytes(p.value.X.Bytes())
 	return out
 }
+
+func (p *Secp256k1Point) YScalar() Scalar {
+	out := new(Secp256k1Scalar)
+	p.value.ToAffine()
+	out.value.SetBytes(p.value.Y.Bytes())
+	return out
+}
