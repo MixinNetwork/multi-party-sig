@@ -171,6 +171,14 @@ func (s *Secp256k1Scalar) ActOnBase() Point {
 	return out
 }
 
+func (s *Secp256k1Scalar) Bytes() []byte {
+	b, err := s.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
 type Secp256k1Point struct {
 	value secp256k1.JacobianPoint
 }
@@ -185,11 +193,6 @@ func secp256k1CastPoint(generic Point) *Secp256k1Point {
 
 func (*Secp256k1Point) Curve() Curve {
 	return Secp256k1{}
-}
-
-func (p *Secp256k1Point) XBytes() []byte {
-	p.value.ToAffine()
-	return p.value.X.Bytes()[:]
 }
 
 func (p *Secp256k1Point) MarshalBinary() ([]byte, error) {

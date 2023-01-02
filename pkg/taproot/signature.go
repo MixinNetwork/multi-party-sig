@@ -53,8 +53,8 @@ func (s SecretKey) Public() (PublicKey, error) {
 	if err := scalar.UnmarshalBinary(s); err != nil || scalar.IsZero() {
 		return nil, fmt.Errorf("invalid secret key")
 	}
-	point := scalar.ActOnBase().(*curve.Secp256k1Point)
-	return PublicKey(point.XBytes()), nil
+	point := scalar.ActOnBase()
+	return PublicKey(point.XScalar().Bytes()), nil
 }
 
 // GenKey generates a new key-pair, from a source of randomness.
@@ -109,7 +109,7 @@ func (sk SecretKey) Sign(rand io.Reader, m []byte) (Signature, error) {
 	}
 
 	P := d.ActOnBase().(*curve.Secp256k1Point)
-	PBytes := P.XBytes()
+	PBytes := P.XScalar().Bytes()
 
 	if !P.HasEvenY() {
 		d.Negate()
@@ -152,7 +152,7 @@ func (sk SecretKey) Sign(rand io.Reader, m []byte) (Signature, error) {
 		k.Negate()
 	}
 
-	RBytes := R.XBytes()[:]
+	RBytes := R.XScalar().Bytes()
 
 	eHash := TaggedHash("BIP0340/challenge", RBytes, PBytes, m)
 	e := new(curve.Secp256k1Scalar)
@@ -198,5 +198,5 @@ func (pk PublicKey) Verify(sig Signature, m []byte) bool {
 	if !check.HasEvenY() {
 		return false
 	}
-	return bytes.Equal(check.XBytes(), sig[:32])
+	return bytes.Equal(check.XScalar().Bytes(), sig[:32])
 }

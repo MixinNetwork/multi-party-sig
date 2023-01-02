@@ -10,7 +10,8 @@ import (
 )
 
 // This corresponds with step 7 of Figure 3 in the Frost paper:
-//   https://eprint.iacr.org/2020/852.pdf
+//
+//	https://eprint.iacr.org/2020/852.pdf
 //
 // The big difference, once again, stems from their being no signing authority.
 // Instead, each participant calculates the signature on their own.
@@ -97,14 +98,14 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	// The format of our signature depends on using taproot, naturally
 	if r.taproot {
 		sig := taproot.Signature(make([]byte, 0, taproot.SignatureLen))
-		sig = append(sig, r.R.(*curve.Secp256k1Point).XBytes()...)
+		sig = append(sig, r.R.XScalar().Bytes()...)
 		zBytes, err := z.MarshalBinary()
 		if err != nil {
 			return r, err
 		}
 		sig = append(sig, zBytes[:]...)
 
-		taprootPub := taproot.PublicKey(r.Y.(*curve.Secp256k1Point).XBytes())
+		taprootPub := taproot.PublicKey(r.Y.XScalar().Bytes())
 
 		if !taprootPub.Verify(sig, r.M) {
 			return r.AbortRound(fmt.Errorf("generated signature failed to verify")), nil

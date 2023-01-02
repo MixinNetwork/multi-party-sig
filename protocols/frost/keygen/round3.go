@@ -12,7 +12,8 @@ import (
 )
 
 // This round corresponds with steps 2-4 of Round 2, Figure 1 in the Frost paper:
-//   https://eprint.iacr.org/2020/852.pdf
+//
+//	https://eprint.iacr.org/2020/852.pdf
 type round3 struct {
 	*round2
 
@@ -153,7 +154,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 				r.verificationShares[i] = y_i.Negate()
 			}
 		}
-		secpVerificationShares := make(map[party.ID]*curve.Secp256k1Point)
+		secpVerificationShares := make(map[party.ID]curve.Point)
 		for k, v := range r.verificationShares {
 			secpVerificationShares[k] = v.(*curve.Secp256k1Point)
 		}
@@ -161,7 +162,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 			ID:                 r.SelfID(),
 			Threshold:          r.threshold,
 			PrivateShare:       r.privateShare.(*curve.Secp256k1Scalar),
-			PublicKey:          YSecp.XBytes()[:],
+			PublicKey:          YSecp.XScalar().Bytes(),
 			VerificationShares: secpVerificationShares,
 		}), nil
 	}

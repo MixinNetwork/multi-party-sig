@@ -5,8 +5,6 @@ import (
 	"crypto/sha256"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/MixinNetwork/multi-party-sig/common/params"
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/internal/test"
@@ -16,6 +14,8 @@ import (
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	"github.com/MixinNetwork/multi-party-sig/pkg/taproot"
 	"github.com/MixinNetwork/multi-party-sig/protocols/frost/keygen"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func checkOutput(t *testing.T, rounds []round.Session, public curve.Point, m []byte) {
@@ -106,19 +106,19 @@ func TestSignTaproot(t *testing.T) {
 		secret.Negate()
 	}
 	f := polynomial.NewPolynomial(group, threshold, secret)
-	publicKey := taproot.PublicKey(publicPoint.(*curve.Secp256k1Point).XBytes())
+	publicKey := taproot.PublicKey(publicPoint.XScalar().Bytes())
 	steakHash := sha256.New()
 	_, _ = steakHash.Write([]byte{0xDE, 0xAD, 0xBE, 0xEF})
 	steak := steakHash.Sum(nil)
 	chainKey := make([]byte, params.SecBytes)
 	_, _ = rand.Read(chainKey)
 
-	privateShares := make(map[party.ID]*curve.Secp256k1Scalar, N)
+	privateShares := make(map[party.ID]curve.Scalar, N)
 	for _, id := range partyIDs {
 		privateShares[id] = f.Evaluate(id.Scalar(group)).(*curve.Secp256k1Scalar)
 	}
 
-	verificationShares := make(map[party.ID]*curve.Secp256k1Point, N)
+	verificationShares := make(map[party.ID]curve.Point, N)
 	for _, id := range partyIDs {
 		verificationShares[id] = privateShares[id].ActOnBase().(*curve.Secp256k1Point)
 	}

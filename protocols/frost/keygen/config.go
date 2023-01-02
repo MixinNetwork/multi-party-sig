@@ -58,7 +58,7 @@ type TaprootConfig struct {
 	// Threshold is the number of accepted corruptions while still being able to sign.
 	Threshold int
 	// PrivateShare is the fraction of the secret key owned by this participant.
-	PrivateShare *curve.Secp256k1Scalar
+	PrivateShare curve.Scalar
 	// PublicKey is the shared public key for this consortium of signers.
 	//
 	// This key can be used to verify signatures produced by the consortium.
@@ -70,7 +70,7 @@ type TaprootConfig struct {
 	// VerificationShares is a map between parties and a commitment to their private share.
 	//
 	// This will later be used to verify the integrity of the signing protocol.
-	VerificationShares map[party.ID]*curve.Secp256k1Point
+	VerificationShares map[party.ID]curve.Point
 }
 
 // Clone creates a deep clone of this struct, and all the values contained inside
@@ -79,14 +79,14 @@ func (r *TaprootConfig) Clone() *TaprootConfig {
 	copy(publicKeyCopy, r.PublicKey)
 	chainKeyCopy := make([]byte, len(r.ChainKey))
 	copy(chainKeyCopy, r.ChainKey)
-	verificationSharesCopy := make(map[party.ID]*curve.Secp256k1Point)
+	verificationSharesCopy := make(map[party.ID]curve.Point)
 	for k, v := range r.VerificationShares {
 		verificationSharesCopy[k] = v
 	}
 	return &TaprootConfig{
 		ID:                 r.ID,
 		Threshold:          r.Threshold,
-		PrivateShare:       curve.Secp256k1{}.NewScalar().Set(r.PrivateShare).(*curve.Secp256k1Scalar),
+		PrivateShare:       curve.Secp256k1{}.NewScalar().Set(r.PrivateShare),
 		PublicKey:          publicKeyCopy,
 		ChainKey:           chainKeyCopy,
 		VerificationShares: verificationSharesCopy,
