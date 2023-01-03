@@ -3,19 +3,17 @@ package keygen
 import (
 	"testing"
 
-	"github.com/fxamacker/cbor/v2"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/internal/test"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/polynomial"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
+	"github.com/fxamacker/cbor/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func checkOutput(t *testing.T, rounds []round.Session, parties party.IDSlice) {
-	group := curve.Secp256k1{}
-
+func checkOutput(t *testing.T, group curve.Curve, rounds []round.Session, parties party.IDSlice) {
 	N := len(rounds)
 	results := make([]Config, 0, N)
 	for _, r := range rounds {
@@ -69,7 +67,7 @@ func checkOutput(t *testing.T, rounds []round.Session, parties party.IDSlice) {
 	}
 }
 
-func TestKeygen(t *testing.T) {
+func TestKeygenSecp256k1(t *testing.T) {
 	group := curve.Secp256k1{}
 	N := 5
 	partyIDs := test.PartyIDs(N)
@@ -89,7 +87,7 @@ func TestKeygen(t *testing.T) {
 		}
 	}
 
-	checkOutput(t, rounds, partyIDs)
+	checkOutput(t, group, rounds, partyIDs)
 }
 
 func checkOutputTaproot(t *testing.T, rounds []round.Session, parties party.IDSlice) {

@@ -15,7 +15,7 @@ import (
 type Curve interface {
 	// NewPoint creates an identity point.
 	NewPoint() Point
-	// NewBasePoint creates the generate of this group.
+	// NewBasePoint creates the generator of this group.
 	NewBasePoint() Point
 	// NewScalar creates a scalar with the value of 0.
 	NewScalar() Scalar
