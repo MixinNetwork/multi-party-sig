@@ -22,8 +22,8 @@ func checkOutput(t *testing.T, rounds []round.Session, public curve.Point, m []b
 	for _, r := range rounds {
 		require.IsType(t, &round.Output{}, r, "expected result round")
 		resultRound := r.(*round.Output)
-		require.IsType(t, Signature{}, resultRound.Result, "expected signature result")
-		signature := resultRound.Result.(Signature)
+		require.IsType(t, &Signature{}, resultRound.Result, "expected signature result")
+		signature := resultRound.Result.(*Signature)
 		assert.True(t, signature.Verify(public, m), "expected valid signature")
 	}
 }

@@ -113,7 +113,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 
 		return r.ResultRound(sig), nil
 	} else {
-		sig := Signature{
+		sig := &Signature{
 			R: r.R,
 			z: z,
 		}

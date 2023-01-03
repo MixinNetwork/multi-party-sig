@@ -5,13 +5,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/MixinNetwork/multi-party-sig/internal/test"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	"github.com/MixinNetwork/multi-party-sig/pkg/protocol"
 	"github.com/MixinNetwork/multi-party-sig/pkg/taproot"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte, n *test.Network, wg *sync.WaitGroup) {
@@ -40,8 +40,8 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 
 	signResult, err := h.Result()
 	require.NoError(t, err)
-	require.IsType(t, Signature{}, signResult)
-	signature := signResult.(Signature)
+	require.IsType(t, &Signature{}, signResult)
+	signature := signResult.(*Signature)
 	assert.True(t, signature.Verify(c0.PublicKey, message))
 
 	h, err = protocol.NewMultiHandler(SignTaproot(c0Taproot, ids, message), nil)

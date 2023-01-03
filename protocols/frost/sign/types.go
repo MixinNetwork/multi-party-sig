@@ -29,7 +29,7 @@ func (messageHash) Domain() string {
 //
 // This signature claims to satisfy:
 //
-//    z * G = R + H(R, Y, m) * Y
+//	z * G = R + H(R, Y, m) * Y
 //
 // for a public key Y.
 type Signature struct {
@@ -39,10 +39,23 @@ type Signature struct {
 	z curve.Scalar
 }
 
+func (sig *Signature) Bytes() []byte {
+	rb, err := sig.R.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	zb := sig.z.Bytes()
+	sb := append(rb, zb...)
+	if len(sb) != 64 {
+		panic(len(sb))
+	}
+	return sb
+}
+
 // Verify checks if a signature equation actually holds.
 //
 // Note that m is the hash of a message, and not the message itself.
-func (sig Signature) Verify(public curve.Point, m []byte) bool {
+func (sig *Signature) Verify(public curve.Point, m []byte) bool {
 	group := public.Curve()
 
 	challengeHash := hash.New()
