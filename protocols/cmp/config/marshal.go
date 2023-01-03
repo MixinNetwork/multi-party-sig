@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cronokirby/saferith"
-	"github.com/fxamacker/cbor/v2"
 	"github.com/MixinNetwork/multi-party-sig/common/types"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/paillier"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	"github.com/MixinNetwork/multi-party-sig/pkg/pedersen"
+	"github.com/cronokirby/saferith"
+	"github.com/fxamacker/cbor/v2"
 )
 
 // EmptyConfig creates an empty Config with a fixed group, ready for unmarshalling.
@@ -40,6 +40,7 @@ type publicMarshal struct {
 }
 
 func (c *Config) MarshalBinary() ([]byte, error) {
+	enc, _ := cbor.CanonicalEncOptions().EncMode()
 	ps := make([]cbor.RawMessage, 0, len(c.Public))
 	for _, id := range c.PartyIDs() {
 		p := c.Public[id]
@@ -51,13 +52,13 @@ func (c *Config) MarshalBinary() ([]byte, error) {
 			S:       p.Pedersen.S(),
 			T:       p.Pedersen.T(),
 		}
-		data, err := cbor.Marshal(pm)
+		data, err := enc.Marshal(pm)
 		if err != nil {
 			return nil, err
 		}
 		ps = append(ps, data)
 	}
-	return cbor.Marshal(&configMarshal{
+	return enc.Marshal(&configMarshal{
 		ID:        c.ID,
 		Threshold: c.Threshold,
 		ECDSA:     c.ECDSA,

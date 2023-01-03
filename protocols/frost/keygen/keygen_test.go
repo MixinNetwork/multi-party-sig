@@ -8,7 +8,6 @@ import (
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/polynomial"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
-	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -55,10 +54,10 @@ func checkOutput(t *testing.T, group curve.Curve, rounds []round.Session, partie
 			expected := shares[id].ActOnBase()
 			require.True(t, result.VerificationShares.Points[id].Equal(expected), "different verification shares", id)
 		}
-		marshalled, err := cbor.Marshal(result)
+		marshalled, err := result.MarshalBinary()
 		require.NoError(t, err)
 		unmarshalledResult := EmptyConfig(group)
-		err = cbor.Unmarshal(marshalled, unmarshalledResult)
+		err = unmarshalledResult.UnmarshalBinary(marshalled)
 		require.NoError(t, err)
 		for _, id := range parties {
 			expected := shares[id].ActOnBase()

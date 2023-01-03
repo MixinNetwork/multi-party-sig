@@ -1,6 +1,10 @@
 package keygen
 
 import (
+	"bytes"
+	"fmt"
+
+	"github.com/MixinNetwork/mixin/common"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	"github.com/MixinNetwork/multi-party-sig/pkg/taproot"
@@ -95,4 +99,116 @@ func (r *TaprootConfig) Clone() *TaprootConfig {
 		ChainKey:           chainKeyCopy,
 		VerificationShares: verificationSharesCopy,
 	}
+}
+
+func (c *Config) MarshalBinary() ([]byte, error) {
+	enc := common.NewEncoder()
+	switch c.Curve().Name() {
+	case (curve.Secp256k1{}).Name():
+		enc.WriteInt(0)
+	case (curve.Edwards25519{}).Name():
+		enc.WriteInt(1)
+	default:
+		return nil, fmt.Errorf("curve %s", c.Curve().Name())
+	}
+
+	writeBytes(enc, []byte(c.ID))
+	enc.WriteInt(c.Threshold)
+
+	b, err := c.PrivateShare.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	writeBytes(enc, b)
+
+	b, err = c.PublicKey.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	writeBytes(enc, b)
+
+	writeBytes(enc, c.ChainKey)
+	b, err = c.VerificationShares.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	writeBytes(enc, b)
+
+	return enc.Bytes(), nil
+}
+
+func (c *Config) UnmarshalBinary(data []byte) error {
+	dec := common.NewDecoder(data)
+	crv, err := dec.ReadInt()
+	if err != nil {
+		return fmt.Errorf("curve error %v", err)
+	}
+	var group curve.Curve
+	switch crv {
+	case 0:
+		group = curve.Secp256k1{}
+	case 1:
+		group = curve.Edwards25519{}
+	default:
+		return fmt.Errorf("curve invalid %d", crv)
+	}
+	if c.Curve().Name() != group.Name() {
+		return fmt.Errorf("curve invalid %s %s", c.Curve().Name(), group.Name())
+	}
+
+	id, err := dec.ReadBytes()
+	if err != nil {
+		return fmt.Errorf("id error %v", err)
+	}
+	c.ID = party.ID(id)
+
+	threshold, err := dec.ReadInt()
+	if err != nil {
+		return fmt.Errorf("threshold error %v", err)
+	}
+	c.Threshold = threshold
+
+	share, err := dec.ReadBytes()
+	if err != nil {
+		return fmt.Errorf("private share error %v", err)
+	}
+	err = c.PrivateShare.UnmarshalBinary(share)
+	if err != nil {
+		return fmt.Errorf("private share error %v", err)
+	}
+
+	public, err := dec.ReadBytes()
+	if err != nil {
+		return fmt.Errorf("public key error %v", err)
+	}
+	err = c.PublicKey.UnmarshalBinary(public)
+	if err != nil {
+		return fmt.Errorf("public key error %v", err)
+	}
+
+	ck, err := dec.ReadBytes()
+	if err != nil {
+		return fmt.Errorf("chain key error %v", err)
+	}
+	c.ChainKey = ck
+
+	pm, err := dec.ReadBytes()
+	if err != nil {
+		return fmt.Errorf("point map error %v", err)
+	}
+	err = c.VerificationShares.UnmarshalBinary(pm)
+	if err != nil {
+		return fmt.Errorf("point map error %v", err)
+	}
+
+	check, err := c.MarshalBinary()
+	if err != nil || !bytes.Equal(data, check) {
+		return fmt.Errorf("check failed %v %x %x", err, data, check)
+	}
+	return nil
+}
+
+func writeBytes(enc *common.Encoder, b []byte) {
+	enc.WriteInt(len(b))
+	enc.Write(b)
 }

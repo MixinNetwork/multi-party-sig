@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/fxamacker/cbor/v2"
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/pkg/hash"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
+	"github.com/fxamacker/cbor/v2"
 )
 
 // StartFunc is function that creates the first round of a protocol.
@@ -252,8 +252,9 @@ func (h *MultiHandler) finalize() {
 	}
 
 	// forward messages with the correct header.
+	enc, _ := cbor.CanonicalEncOptions().EncMode()
 	for roundMsg := range out {
-		data, err := cbor.Marshal(roundMsg.Content)
+		data, err := enc.Marshal(roundMsg.Content)
 		if err != nil {
 			panic(fmt.Errorf("failed to marshal round message: %w", err))
 		}

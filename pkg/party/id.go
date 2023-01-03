@@ -4,9 +4,9 @@ import (
 	"errors"
 	"io"
 
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/cronokirby/saferith"
 	"github.com/fxamacker/cbor/v2"
-	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 )
 
 // ID represents a unique identifier for a participant in our scheme.
@@ -70,15 +70,18 @@ func EmptyPointMap(group curve.Curve) *PointMap {
 }
 
 func (m *PointMap) MarshalBinary() ([]byte, error) {
+	enc, err := cbor.CanonicalEncOptions().EncMode()
+	if err != nil {
+		return nil, err
+	}
 	pointBytes := make(map[ID]cbor.RawMessage, len(m.Points))
-	var err error
 	for k, v := range m.Points {
-		pointBytes[k], err = cbor.Marshal(v)
+		pointBytes[k], err = enc.Marshal(v)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return cbor.Marshal(pointBytes)
+	return enc.Marshal(pointBytes)
 }
 
 func (m *PointMap) UnmarshalBinary(data []byte) error {

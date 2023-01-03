@@ -5,9 +5,9 @@ import (
 	"errors"
 	"io"
 
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/cronokirby/saferith"
 	"github.com/fxamacker/cbor/v2"
-	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 )
 
 type rawExponentData struct {
@@ -205,7 +205,8 @@ func (e *Exponent) UnmarshalBinary(data []byte) error {
 }
 
 func (e *Exponent) MarshalBinary() ([]byte, error) {
-	data, err := cbor.Marshal(rawExponentData{
+	enc, _ := cbor.CanonicalEncOptions().EncMode()
+	data, err := enc.Marshal(rawExponentData{
 		IsConstant:   e.IsConstant,
 		Coefficients: e.coefficients,
 	})
