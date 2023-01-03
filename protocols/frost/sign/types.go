@@ -1,6 +1,7 @@
 package sign
 
 import (
+	"crypto/ed25519"
 	"io"
 
 	"github.com/MixinNetwork/multi-party-sig/pkg/hash"
@@ -39,7 +40,7 @@ type Signature struct {
 	z curve.Scalar
 }
 
-func (sig *Signature) Bytes() []byte {
+func (sig *Signature) Serialize() []byte {
 	rb, err := sig.R.MarshalBinary()
 	if err != nil {
 		panic(err)
@@ -68,4 +69,10 @@ func (sig *Signature) Verify(public curve.Point, m []byte) bool {
 	actual := sig.z.ActOnBase()
 
 	return expected.Equal(actual)
+}
+
+func (sig *Signature) VerifyEd25519(public curve.Point, m []byte) bool {
+	pb, _ := public.MarshalBinary()
+	pub := ed25519.PublicKey(pb)
+	return ed25519.Verify(pub, m, sig.Serialize())
 }

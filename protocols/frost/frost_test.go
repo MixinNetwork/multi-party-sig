@@ -5,7 +5,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/MixinNetwork/mixin/crypto"
 	"github.com/MixinNetwork/multi-party-sig/internal/test"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
@@ -46,14 +45,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	signature := signResult.(*Signature)
 	switch variant {
 	case sign.ProtocolMixin:
-		sig := signature.Bytes()
-		pb, _ := c0.PublicKey.MarshalBinary()
-		var mpub crypto.Key
-		copy(mpub[:], pb)
-		var msig crypto.Signature
-		copy(msig[:], sig)
-		assert.Len(t, sig, 64)
-		assert.True(t, mpub.Verify(message, msig))
+		assert.True(t, signature.VerifyEd25519(c0.PublicKey, message))
 	default:
 		assert.True(t, signature.Verify(c0.PublicKey, message))
 	}

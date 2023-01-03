@@ -1,7 +1,6 @@
 package sign
 
 import (
-	"crypto/ed25519"
 	"crypto/rand"
 	"testing"
 
@@ -93,18 +92,17 @@ func checkOutputEd25519(t *testing.T, rounds []round.Session, public curve.Point
 			assert.False(t, signature.Verify(public, m), "expected invalid signature")
 		}
 
-		pb, _ := public.MarshalBinary()
-		assert.Len(t, pb, 32)
-		pub := ed25519.PublicKey(pb)
-		sig := signature.Bytes()
-		assert.Len(t, sig, 64)
 		switch variant {
 		case ProtocolMixin:
-			assert.True(t, ed25519.Verify(pub, m, sig), "expected valid ed25519 signature")
+			assert.True(t, signature.VerifyEd25519(public, m), "expected valid ed25519 signature")
 		default:
-			assert.False(t, ed25519.Verify(pub, m, sig), "expected invalid ed25519 signature")
+			assert.False(t, signature.VerifyEd25519(public, m), "expected invalid ed25519 signature")
 		}
 
+		pb, _ := public.MarshalBinary()
+		assert.Len(t, pb, 32)
+		sig := signature.Serialize()
+		assert.Len(t, sig, 64)
 		var mpub crypto.Key
 		copy(mpub[:], pb)
 		var msig crypto.Signature

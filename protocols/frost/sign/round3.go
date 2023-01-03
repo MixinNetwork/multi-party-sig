@@ -1,7 +1,6 @@
 package sign
 
 import (
-	"crypto/ed25519"
 	"fmt"
 
 	"github.com/MixinNetwork/multi-party-sig/common/round"
@@ -131,12 +130,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 			z: z,
 		}
 
-		pb, err := r.Y.MarshalBinary()
-		if err != nil {
-			panic(err)
-		}
-		pub := ed25519.PublicKey(pb)
-		if !ed25519.Verify(pub, r.M, sig.Bytes()) {
+		if !sig.VerifyEd25519(r.Y, r.M) {
 			return r.AbortRound(fmt.Errorf("generated signature failed to verify")), nil
 		}
 
