@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/MixinNetwork/multi-party-sig/common/round"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	"github.com/MixinNetwork/multi-party-sig/pkg/protocol"
 	"github.com/MixinNetwork/multi-party-sig/protocols/frost/keygen"
@@ -36,6 +37,9 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 			info.ProtocolID = protocolIDTaproot
 		case ProtocolMixin:
 			info.ProtocolID = protocolIDMixin
+			if result.Curve().Name() != (curve.Edwards25519{}).Name() {
+				return nil, fmt.Errorf("sign.StartSignCommon: %s", result.Curve().Name())
+			}
 		case ProtocolDefault:
 			info.ProtocolID = protocolID
 		default:

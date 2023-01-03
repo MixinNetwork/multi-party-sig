@@ -49,6 +49,10 @@ func (r *Config) Curve() curve.Curve {
 	return r.PublicKey.Curve()
 }
 
+func (r *Config) PublicPoint() curve.Point {
+	return r.PublicKey
+}
+
 // TaprootConfig is like result, but for Taproot / BIP-340 keys.
 //
 // The main difference is that our public key is an actual taproot public key.
