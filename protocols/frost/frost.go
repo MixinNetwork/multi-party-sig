@@ -78,8 +78,8 @@ func KeygenTaproot(selfID party.ID, participants []party.ID, threshold int) prot
 // Instead, each participant independently verifies and broadcasts items as necessary.
 //
 // Differences stemming from this change are commented throughout the protocol.
-func Sign(config *Config, signers []party.ID, messageHash []byte) protocol.StartFunc {
-	return sign.StartSignCommon(config, signers, messageHash, sign.ProtocolDefault)
+func Sign(config *Config, signers []party.ID, messageHash []byte, variant int) protocol.StartFunc {
+	return sign.StartSignCommon(config, signers, messageHash, variant)
 }
 
 // SignTaproot is like Sign, but will generate a Taproot / BIP-340 compatible signature.

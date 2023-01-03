@@ -102,7 +102,7 @@ func checkOutputEd25519(t *testing.T, rounds []round.Session, public curve.Point
 		case ProtocolMixin:
 			assert.True(t, ed25519.Verify(pub, m, sig), "expected valid ed25519 signature")
 		default:
-			assert.False(t, ed25519.Verify(pub, m, sig), "expected invalid ed25519 signature because hash method")
+			assert.False(t, ed25519.Verify(pub, m, sig), "expected invalid ed25519 signature")
 		}
 
 		var mpub crypto.Key
