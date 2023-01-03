@@ -53,11 +53,7 @@ type Edwards25519Scalar struct {
 }
 
 func edwards25519CastScalar(generic Scalar) *Edwards25519Scalar {
-	out, ok := generic.(*Edwards25519Scalar)
-	if !ok {
-		panic(fmt.Sprintf("failed to convert to edwards25519Scalar: %v", generic))
-	}
-	return out
+	return generic.(*Edwards25519Scalar)
 }
 
 func (*Edwards25519Scalar) Curve() Curve {
@@ -138,13 +134,15 @@ func (s *Edwards25519Scalar) SetNat(x *saferith.Nat) Scalar {
 
 func (s *Edwards25519Scalar) Act(that Point) Point {
 	other := edwards25519CastPoint(that)
-	value := edwards25519.NewIdentityPoint()
-	return &Edwards25519Point{*value.ScalarMult(&s.value, &other.value)}
+	out := new(Edwards25519Point)
+	out.value.ScalarMult(&s.value, &other.value)
+	return out
 }
 
 func (s *Edwards25519Scalar) ActOnBase() Point {
-	value := edwards25519.NewIdentityPoint()
-	return &Edwards25519Point{*value.ScalarBaseMult(&s.value)}
+	out := new(Edwards25519Point)
+	out.value.ScalarBaseMult(&s.value)
+	return out
 }
 
 func (s *Edwards25519Scalar) Bytes() []byte {
@@ -160,11 +158,7 @@ type Edwards25519Point struct {
 }
 
 func edwards25519CastPoint(generic Point) *Edwards25519Point {
-	out, ok := generic.(*Edwards25519Point)
-	if !ok {
-		panic(fmt.Sprintf("failed to convert to edwards25519Point: %v", generic))
-	}
-	return out
+	return generic.(*Edwards25519Point)
 }
 
 func (*Edwards25519Point) Curve() Curve {
@@ -177,7 +171,7 @@ func (p *Edwards25519Point) MarshalBinary() ([]byte, error) {
 
 func (p *Edwards25519Point) UnmarshalBinary(data []byte) error {
 	if len(data) != 32 {
-		return fmt.Errorf("invalid length for edwards25519Point: %d", len(data))
+		return fmt.Errorf("invalid edwards25519 point length: %d", len(data))
 	}
 	_, err := p.value.SetBytes(data)
 	return err
