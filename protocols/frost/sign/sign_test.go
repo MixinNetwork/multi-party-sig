@@ -67,7 +67,7 @@ func TestSign(t *testing.T) {
 		if newPublicKey == nil {
 			newPublicKey = result.PublicKey
 		}
-		r, err := StartSignCommon(false, result, partyIDs, steak)(nil)
+		r, err := StartSignCommon(result, partyIDs, steak, ProtocolDefault)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
 	}
@@ -149,7 +149,7 @@ func TestSignTaproot(t *testing.T) {
 			PublicKey:          tapRootPublicKey,
 			VerificationShares: party.NewPointMap(genericVerificationShares),
 		}
-		r, err := StartSignCommon(true, normalResult, partyIDs, steak)(nil)
+		r, err := StartSignCommon(normalResult, partyIDs, steak, ProtocolTaproot)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
 	}

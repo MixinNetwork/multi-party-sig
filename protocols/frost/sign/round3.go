@@ -1,6 +1,7 @@
 package sign
 
 import (
+	"crypto/ed25519"
 	"fmt"
 
 	"github.com/MixinNetwork/multi-party-sig/common/round"
@@ -96,7 +97,8 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 	}
 
 	// The format of our signature depends on using taproot, naturally
-	if r.taproot {
+	switch r.ProtocolID() {
+	case protocolIDTaproot:
 		sig := taproot.Signature(make([]byte, 0, taproot.SignatureLen))
 		sig = append(sig, r.R.XScalar().Bytes()...)
 		zBytes, err := z.MarshalBinary()
@@ -112,7 +114,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		}
 
 		return r.ResultRound(sig), nil
-	} else {
+	case protocolID:
 		sig := &Signature{
 			R: r.R,
 			z: z,
@@ -123,6 +125,24 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		}
 
 		return r.ResultRound(sig), nil
+	case protocolIDMixin:
+		sig := &Signature{
+			R: r.R,
+			z: z,
+		}
+
+		pb, err := r.Y.MarshalBinary()
+		if err != nil {
+			panic(err)
+		}
+		pub := ed25519.PublicKey(pb)
+		if !ed25519.Verify(pub, r.M, sig.Bytes()) {
+			return r.AbortRound(fmt.Errorf("generated signature failed to verify")), nil
+		}
+
+		return r.ResultRound(sig), nil
+	default:
+		panic(r.ProtocolID())
 	}
 }
 

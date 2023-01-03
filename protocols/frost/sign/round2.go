@@ -1,6 +1,7 @@
 package sign
 
 import (
+	"crypto/sha512"
 	"fmt"
 
 	"github.com/MixinNetwork/multi-party-sig/common/round"
@@ -114,7 +115,8 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		R = R.Add(RShares[l])
 	}
 	var c curve.Scalar
-	if r.taproot {
+	switch r.ProtocolID() {
+	case protocolIDTaproot:
 		// BIP-340 adjustment: We need R to have an even y coordinate. This means
 		// conditionally negating k = ∑ᵢ (dᵢ + (eᵢ ρᵢ)), which we can accomplish
 		// by negating our dᵢ, eᵢ, if necessary. This entails negating the RShares
@@ -134,10 +136,28 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		PBytes := r.Y.XScalar().Bytes()
 		cHash := taproot.TaggedHash("BIP0340/challenge", RBytes, PBytes, r.M)
 		c = r.Group().NewScalar().SetNat(new(saferith.Nat).SetBytes(cHash))
-	} else {
+	case protocolID:
 		cHash := hash.New()
 		_ = cHash.WriteAny(R, r.Y, r.M)
 		c = sample.Scalar(cHash.Digest(), r.Group())
+	case protocolIDMixin:
+		h := sha512.New()
+		b, err := R.MarshalBinary()
+		if err != nil {
+			panic(err)
+		}
+		h.Write(b)
+		b, err = r.Y.MarshalBinary()
+		if err != nil {
+			panic(err)
+		}
+		h.Write(b)
+		h.Write(r.M)
+		var digest [64]byte
+		h.Sum(digest[:0])
+		c = r.Group().NewScalar().SetNat(new(saferith.Nat).SetBytes(digest[:]))
+	default:
+		panic(r.ProtocolID())
 	}
 
 	// Lambdas[i] = λᵢ

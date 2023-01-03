@@ -10,14 +10,19 @@ import (
 )
 
 const (
+	ProtocolDefault = 0
+	ProtocolTaproot = 1
+	ProtocolMixin   = 2
+
 	// Frost Sign with Threshold.
 	protocolID        = "frost/sign-threshold"
 	protocolIDTaproot = "frost/sign-threshold-taproot"
+	protocolIDMixin   = "frost/sign-threshold-mixin"
 	// This protocol has 3 concrete rounds.
 	protocolRounds round.Number = 3
 )
 
-func StartSignCommon(taproot bool, result *keygen.Config, signers []party.ID, messageHash []byte) protocol.StartFunc {
+func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []byte, protocol int) protocol.StartFunc {
 	return func(sessionID []byte) (round.Session, error) {
 		info := round.Info{
 			FinalRoundNumber: protocolRounds,
@@ -26,10 +31,15 @@ func StartSignCommon(taproot bool, result *keygen.Config, signers []party.ID, me
 			Threshold:        result.Threshold,
 			Group:            result.PublicKey.Curve(),
 		}
-		if taproot {
+		switch protocol {
+		case ProtocolTaproot:
 			info.ProtocolID = protocolIDTaproot
-		} else {
+		case ProtocolMixin:
+			info.ProtocolID = protocolIDMixin
+		case ProtocolDefault:
 			info.ProtocolID = protocolID
+		default:
+			return nil, fmt.Errorf("sign.StartSignCommon: %d", protocol)
 		}
 
 		helper, err := round.NewSession(info, sessionID, nil)
@@ -38,7 +48,6 @@ func StartSignCommon(taproot bool, result *keygen.Config, signers []party.ID, me
 		}
 		return &round1{
 			Helper:  helper,
-			taproot: taproot,
 			M:       messageHash,
 			Y:       result.PublicKey,
 			YShares: result.VerificationShares.Points,

@@ -11,7 +11,8 @@ import (
 )
 
 // This round sort of corresponds with Figure 2 of the Frost paper:
-//   https://eprint.iacr.org/2020/852.pdf
+//
+//	https://eprint.iacr.org/2020/852.pdf
 //
 // The main difference is that instead of having a separate pre-processing step,
 // we instead have an additional round at the start of the signing step.
@@ -21,12 +22,6 @@ import (
 // namely that these commitments are broadcast, instead of stored with the authority.
 type round1 struct {
 	*round.Helper
-	// taproot indicates whether or not we need to generate Taproot / BIP-340 signatures.
-	//
-	// If so, we have a few slight tweaks to make around the evenness of points,
-	// and we need to make sure to generate our challenge in the correct way. Naturally,
-	// we also return a taproot.Signature instead a generic signature.
-	taproot bool
 	// M is the hash of the message we're signing.
 	//
 	// This plays the same role as m in the Frost paper. One slight difference
