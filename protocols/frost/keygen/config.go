@@ -208,6 +208,87 @@ func (c *Config) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func (c *TaprootConfig) MarshalBinary() ([]byte, error) {
+	enc := common.NewEncoder()
+	enc.WriteInt(0)
+	writeBytes(enc, []byte(c.ID))
+	enc.WriteInt(c.Threshold)
+
+	b, err := c.PrivateShare.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	writeBytes(enc, b)
+	writeBytes(enc, c.PublicKey)
+	writeBytes(enc, c.ChainKey)
+
+	b, err = party.NewPointMap(c.VerificationShares).MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	writeBytes(enc, b)
+
+	return enc.Bytes(), nil
+}
+
+func (c *TaprootConfig) UnmarshalBinary(data []byte) error {
+	dec := common.NewDecoder(data)
+	crv, err := dec.ReadInt()
+	if err != nil || crv != 0 {
+		return fmt.Errorf("curve error %d %v", crv, err)
+	}
+
+	id, err := dec.ReadBytes()
+	if err != nil {
+		return fmt.Errorf("id error %v", err)
+	}
+	c.ID = party.ID(id)
+
+	threshold, err := dec.ReadInt()
+	if err != nil {
+		return fmt.Errorf("threshold error %v", err)
+	}
+	c.Threshold = threshold
+
+	share, err := dec.ReadBytes()
+	if err != nil {
+		return fmt.Errorf("private share error %v", err)
+	}
+	err = c.PrivateShare.UnmarshalBinary(share)
+	if err != nil {
+		return fmt.Errorf("private share error %v", err)
+	}
+
+	public, err := dec.ReadBytes()
+	if err != nil {
+		return fmt.Errorf("public key error %v", err)
+	}
+	c.PublicKey = public
+
+	ck, err := dec.ReadBytes()
+	if err != nil {
+		return fmt.Errorf("chain key error %v", err)
+	}
+	c.ChainKey = ck
+
+	pmb, err := dec.ReadBytes()
+	if err != nil {
+		return fmt.Errorf("point map error %v", err)
+	}
+	pm := party.EmptyPointMap(curve.Secp256k1{})
+	err = pm.UnmarshalBinary(pmb)
+	if err != nil {
+		return fmt.Errorf("point map error %v", err)
+	}
+	c.VerificationShares = pm.Points
+
+	check, err := c.MarshalBinary()
+	if err != nil || !bytes.Equal(data, check) {
+		return fmt.Errorf("check failed %v %x %x", err, data, check)
+	}
+	return nil
+}
+
 func writeBytes(enc *common.Encoder, b []byte) {
 	enc.WriteInt(len(b))
 	enc.Write(b)
