@@ -140,7 +140,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		cHash := hash.New()
 		_ = cHash.WriteAny(R, r.Y, r.M)
 		c = sample.Scalar(cHash.Digest(), r.Group())
-	case protocolIDMixin:
+	case protocolIDEd25519SHA512:
 		h := sha512.New()
 		b, err := R.MarshalBinary()
 		if err != nil {
@@ -148,6 +148,23 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		}
 		h.Write(b)
 		b, err = r.Y.MarshalBinary()
+		if err != nil {
+			panic(err)
+		}
+		h.Write(b)
+		h.Write(r.M)
+		var digest [64]byte
+		h.Sum(digest[:0])
+		c = r.Group().NewScalar().SetNat(new(saferith.Nat).SetBytes(digest[:]))
+	case protocolIDMixinPublic:
+		h := sha512.New()
+		b, err := R.MarshalBinary()
+		if err != nil {
+			panic(err)
+		}
+		h.Write(b)
+		P := r.mS.ActOnBase().Add(r.Y)
+		b, err = P.MarshalBinary()
 		if err != nil {
 			panic(err)
 		}

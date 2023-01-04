@@ -2,6 +2,8 @@ package sign
 
 import (
 	"crypto/rand"
+	"encoding/binary"
+	"encoding/hex"
 	"testing"
 
 	"filippo.io/edwards25519"
@@ -20,8 +22,9 @@ import (
 )
 
 func TestSignEdwards25519(t *testing.T) {
-	testSignEdwards25519(t, ProtocolMixin)
+	testSignEdwards25519(t, ProtocolEd25519SHA512)
 	testSignEdwards25519(t, ProtocolDefault)
+	testSignEdwards25519(t, ProtocolMixinPublic)
 }
 
 func testSignEdwards25519(t *testing.T, variant int) {
@@ -63,7 +66,13 @@ func testSignEdwards25519(t *testing.T, variant int) {
 		if newPublicKey == nil {
 			newPublicKey = result.PublicKey
 		}
-		r, err := StartSignCommon(result, partyIDs, steak, variant)(nil)
+		messageHash := steak
+		if variant == ProtocolMixinPublic {
+			mask, _ := hex.DecodeString("827e14ca58aec0759d3f31f0dc0725f766022fa89fa479dfbdf423d3a5bc4b64")
+			mask = binary.BigEndian.AppendUint16(mask, 0)
+			messageHash = append(mask, messageHash...)
+		}
+		r, err := StartSignCommon(result, partyIDs, messageHash, variant)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
 	}
@@ -93,7 +102,7 @@ func checkOutputEd25519(t *testing.T, rounds []round.Session, public curve.Point
 		}
 
 		switch variant {
-		case ProtocolMixin:
+		case ProtocolEd25519SHA512:
 			assert.True(t, signature.VerifyEd25519(public, m), "expected valid ed25519 signature")
 		default:
 			assert.False(t, signature.VerifyEd25519(public, m), "expected invalid ed25519 signature")
@@ -109,7 +118,7 @@ func checkOutputEd25519(t *testing.T, rounds []round.Session, public curve.Point
 		copy(msig[:], sig)
 		assert.Len(t, sig, 64)
 		switch variant {
-		case ProtocolMixin:
+		case ProtocolEd25519SHA512:
 			assert.True(t, mpub.Verify(m, msig), "expected valid mixin signature")
 		case ProtocolDefault:
 			challengeHash := hash.New()

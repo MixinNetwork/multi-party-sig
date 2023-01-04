@@ -124,13 +124,26 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		}
 
 		return r.ResultRound(sig), nil
-	case protocolIDMixin:
+	case protocolIDEd25519SHA512:
 		sig := &Signature{
 			R: r.R,
 			z: z,
 		}
 
 		if !sig.VerifyEd25519(r.Y, r.M) {
+			return r.AbortRound(fmt.Errorf("generated signature failed to verify")), nil
+		}
+
+		return r.ResultRound(sig), nil
+	case protocolIDMixinPublic:
+		z = r.mS.Curve().NewScalar().Set(r.mS).Mul(r.c).Add(z)
+		sig := &Signature{
+			R: r.R,
+			z: z,
+		}
+
+		P := r.mS.ActOnBase().Add(r.Y)
+		if !sig.VerifyEd25519(P, r.M) {
 			return r.AbortRound(fmt.Errorf("generated signature failed to verify")), nil
 		}
 

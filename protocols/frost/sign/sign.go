@@ -1,8 +1,10 @@
 package sign
 
 import (
+	"encoding/binary"
 	"fmt"
 
+	"github.com/MixinNetwork/mixin/crypto"
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
@@ -11,14 +13,16 @@ import (
 )
 
 const (
-	ProtocolDefault = 0
-	ProtocolTaproot = 1
-	ProtocolMixin   = 2
+	ProtocolDefault       = 0
+	ProtocolTaproot       = 1
+	ProtocolEd25519SHA512 = 2
+	ProtocolMixinPublic   = 3
 
 	// Frost Sign with Threshold.
-	protocolID        = "frost/sign-threshold"
-	protocolIDTaproot = "frost/sign-threshold-taproot"
-	protocolIDMixin   = "frost/sign-threshold-mixin"
+	protocolID              = "frost/sign-threshold"
+	protocolIDTaproot       = "frost/sign-threshold-taproot"
+	protocolIDEd25519SHA512 = "frost/sign-threshold-ed25519-sha512"
+	protocolIDMixinPublic   = "frost/sign-threshold-mixin-public"
 	// This protocol has 3 concrete rounds.
 	protocolRounds round.Number = 3
 )
@@ -35,8 +39,13 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 		switch protocol {
 		case ProtocolTaproot:
 			info.ProtocolID = protocolIDTaproot
-		case ProtocolMixin:
-			info.ProtocolID = protocolIDMixin
+		case ProtocolEd25519SHA512:
+			info.ProtocolID = protocolIDEd25519SHA512
+			if result.Curve().Name() != (curve.Edwards25519{}).Name() {
+				return nil, fmt.Errorf("sign.StartSignCommon: %s", result.Curve().Name())
+			}
+		case ProtocolMixinPublic:
+			info.ProtocolID = protocolIDMixinPublic
 			if result.Curve().Name() != (curve.Edwards25519{}).Name() {
 				return nil, fmt.Errorf("sign.StartSignCommon: %s", result.Curve().Name())
 			}
@@ -50,12 +59,33 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 		if err != nil {
 			return nil, fmt.Errorf("sign.StartSign: %w", err)
 		}
-		return &round1{
+		r := &round1{
 			Helper:  helper,
 			M:       messageHash,
 			Y:       result.PublicKey,
 			YShares: result.VerificationShares.Points,
 			s_i:     result.PrivateShare,
-		}, nil
+		}
+
+		if protocol == ProtocolMixinPublic {
+			if len(r.M) < 34 {
+				return nil, fmt.Errorf("sign.StartSignCommon: %d", len(r.M))
+			}
+			var B, R crypto.Key
+			b, _ := r.Y.MarshalBinary()
+			copy(B[:], b)
+			copy(R[:], r.M[:32])
+			index := uint64(binary.BigEndian.Uint16(r.M[32:34]))
+			a := B.DeterministicHashDerive()
+			s := crypto.HashScalar(crypto.KeyMultPubPriv(&R, &a), index)
+			r.mS = result.Curve().NewScalar()
+			err = r.mS.UnmarshalBinary(s.Bytes())
+			if err != nil {
+				panic(err)
+			}
+			r.M = r.M[34:]
+		}
+
+		return r, nil
 	}
 }

@@ -37,6 +37,9 @@ type round1 struct {
 	YShares map[party.ID]curve.Point
 	// s_i = sᵢ is our private secret share
 	s_i curve.Scalar
+
+	// mixin scalar H(Ra || i)
+	mS curve.Scalar
 }
 
 // VerifyMessage implements round.Round.

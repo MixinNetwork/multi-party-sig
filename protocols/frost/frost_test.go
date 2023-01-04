@@ -44,7 +44,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.IsType(t, &Signature{}, signResult)
 	signature := signResult.(*Signature)
 	switch variant {
-	case sign.ProtocolMixin:
+	case sign.ProtocolEd25519SHA512:
 		assert.True(t, signature.VerifyEd25519(c0.PublicKey, message))
 	default:
 		assert.True(t, signature.Verify(c0.PublicKey, message))
@@ -81,7 +81,7 @@ func testFrost(t *testing.T, group curve.Curve, variant int) {
 }
 
 func TestFrost(t *testing.T) {
-	testFrost(t, curve.Edwards25519{}, sign.ProtocolMixin)
+	testFrost(t, curve.Edwards25519{}, sign.ProtocolEd25519SHA512)
 	testFrost(t, curve.Edwards25519{}, sign.ProtocolDefault)
 	testFrost(t, curve.Secp256k1{}, sign.ProtocolDefault)
 }
