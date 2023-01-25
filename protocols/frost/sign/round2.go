@@ -121,8 +121,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		// conditionally negating k = ∑ᵢ (dᵢ + (eᵢ ρᵢ)), which we can accomplish
 		// by negating our dᵢ, eᵢ, if necessary. This entails negating the RShares
 		// as well.
-		RSecp := R
-		if !RSecp.HasEvenY() {
+		if !R.HasEvenY() {
 			r.d_i.Negate()
 			r.e_i.Negate()
 			for _, l := range r.PartyIDs() {
@@ -132,11 +131,11 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 
 		// BIP-340 adjustment: we need to calculate our hash as specified in:
 		// https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki#default-signing
-		RBytes := RSecp.XScalar().Bytes()
+		RBytes := R.XScalar().Bytes()
 		PBytes := r.Y.XScalar().Bytes()
 		cHash := taproot.TaggedHash("BIP0340/challenge", RBytes, PBytes, r.M)
 		c = r.Group().NewScalar().SetNat(new(saferith.Nat).SetBytes(cHash))
-	case protocolID:
+	case protocolIDDefault:
 		cHash := hash.New()
 		_ = cHash.WriteAny(R, r.Y, r.M)
 		c = sample.Scalar(cHash.Digest(), r.Group())

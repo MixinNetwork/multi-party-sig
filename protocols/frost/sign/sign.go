@@ -19,7 +19,7 @@ const (
 	ProtocolMixinPublic   = 3
 
 	// Frost Sign with Threshold.
-	protocolID              = "frost/sign-threshold"
+	protocolIDDefault       = "frost/sign-threshold-default"
 	protocolIDTaproot       = "frost/sign-threshold-taproot"
 	protocolIDEd25519SHA512 = "frost/sign-threshold-ed25519-sha512"
 	protocolIDMixinPublic   = "frost/sign-threshold-mixin-public"
@@ -39,6 +39,9 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 		switch protocol {
 		case ProtocolTaproot:
 			info.ProtocolID = protocolIDTaproot
+			if result.Curve().Name() != (curve.Secp256k1{}).Name() {
+				return nil, fmt.Errorf("sign.StartSignCommon: %s", result.Curve().Name())
+			}
 		case ProtocolEd25519SHA512:
 			info.ProtocolID = protocolIDEd25519SHA512
 			if result.Curve().Name() != (curve.Edwards25519{}).Name() {
@@ -50,7 +53,7 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 				return nil, fmt.Errorf("sign.StartSignCommon: %s", result.Curve().Name())
 			}
 		case ProtocolDefault:
-			info.ProtocolID = protocolID
+			info.ProtocolID = protocolIDDefault
 		default:
 			return nil, fmt.Errorf("sign.StartSignCommon: %d", protocol)
 		}

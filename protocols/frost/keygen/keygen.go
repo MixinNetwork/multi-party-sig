@@ -11,7 +11,7 @@ import (
 
 const (
 	// Frost KeyGen with Threshold.
-	protocolID        = "frost/keygen-threshold"
+	protocolIDDefault = "frost/keygen-threshold-default"
 	protocolIDTaproot = "frost/keygen-threshold-taproot"
 	// This protocol has 3 concrete rounds.
 	protocolRounds round.Number = 3
@@ -36,7 +36,7 @@ func StartKeygenCommon(taproot bool, group curve.Curve, participants []party.ID,
 		if taproot {
 			info.ProtocolID = protocolIDTaproot
 		} else {
-			info.ProtocolID = protocolID
+			info.ProtocolID = protocolIDDefault
 		}
 
 		helper, err := round.NewSession(info, sessionID, nil)
