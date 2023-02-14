@@ -2,7 +2,6 @@ package sign
 
 import (
 	"crypto/rand"
-	"encoding/binary"
 	"encoding/hex"
 	"testing"
 
@@ -53,6 +52,7 @@ func testSignEdwards25519(t *testing.T, variant int) {
 	}
 
 	var newPublicKey curve.Point
+	seed := sample.Scalar(rand.Reader, group).Bytes()
 	rounds := make([]round.Session, 0, N)
 	for _, id := range partyIDs {
 		result := &keygen.Config{
@@ -68,8 +68,14 @@ func testSignEdwards25519(t *testing.T, variant int) {
 		}
 		messageHash := steak
 		if variant == ProtocolMixinPublic {
+			pub, _ := newPublicKey.MarshalBinary()
 			mask, _ := hex.DecodeString("827e14ca58aec0759d3f31f0dc0725f766022fa89fa479dfbdf423d3a5bc4b64")
-			mask = binary.BigEndian.AppendUint16(mask, 0)
+			var B, R crypto.Key
+			copy(B[:], pub)
+			copy(R[:], mask)
+			index := uint64(0)
+			a := crypto.NewKeyFromSeed(append(seed, seed...))
+			mask = crypto.HashScalar(crypto.KeyMultPubPriv(&R, &a), index).Bytes()
 			messageHash = append(mask, messageHash...)
 		}
 		r, err := StartSignCommon(result, partyIDs, messageHash, variant)(nil)

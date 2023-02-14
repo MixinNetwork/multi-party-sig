@@ -1,10 +1,8 @@
 package sign
 
 import (
-	"encoding/binary"
 	"fmt"
 
-	"github.com/MixinNetwork/mixin/crypto"
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
@@ -71,18 +69,11 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 		}
 
 		if protocol == ProtocolMixinPublic {
-			if len(r.M) < 34 {
+			if len(r.M) < 32 {
 				return nil, fmt.Errorf("sign.StartSignCommon: %d", len(r.M))
 			}
-			var B, R crypto.Key
-			b, _ := r.Y.MarshalBinary()
-			copy(B[:], b)
-			copy(R[:], r.M[:32])
-			index := uint64(binary.BigEndian.Uint16(r.M[32:34]))
-			a := B.DeterministicHashDerive()
-			s := crypto.HashScalar(crypto.KeyMultPubPriv(&R, &a), index)
 			r.mS = result.Curve().NewScalar()
-			err = r.mS.UnmarshalBinary(s.Bytes())
+			err = r.mS.UnmarshalBinary(r.M[:32])
 			if err != nil {
 				panic(err)
 			}
