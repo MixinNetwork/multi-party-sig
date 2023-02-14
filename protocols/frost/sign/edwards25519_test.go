@@ -51,8 +51,18 @@ func testSignEdwards25519(t *testing.T, variant int) {
 		verificationShares[id] = privateShares[id].ActOnBase()
 	}
 
+	if variant == ProtocolMixinPublic {
+		seed := sample.Scalar(rand.Reader, group).Bytes()
+		mask, _ := hex.DecodeString("827e14ca58aec0759d3f31f0dc0725f766022fa89fa479dfbdf423d3a5bc4b64")
+		var R crypto.Key
+		copy(R[:], mask)
+		index := uint64(0)
+		a := crypto.NewKeyFromSeed(append(seed, seed...))
+		mask = crypto.HashScalar(crypto.KeyMultPubPriv(&R, &a), index).Bytes()
+		steak = append(mask, steak...)
+	}
+
 	var newPublicKey curve.Point
-	seed := sample.Scalar(rand.Reader, group).Bytes()
 	rounds := make([]round.Session, 0, N)
 	for _, id := range partyIDs {
 		result := &keygen.Config{
@@ -67,17 +77,6 @@ func testSignEdwards25519(t *testing.T, variant int) {
 			newPublicKey = result.PublicKey
 		}
 		messageHash := steak
-		if variant == ProtocolMixinPublic {
-			pub, _ := newPublicKey.MarshalBinary()
-			mask, _ := hex.DecodeString("827e14ca58aec0759d3f31f0dc0725f766022fa89fa479dfbdf423d3a5bc4b64")
-			var B, R crypto.Key
-			copy(B[:], pub)
-			copy(R[:], mask)
-			index := uint64(0)
-			a := crypto.NewKeyFromSeed(append(seed, seed...))
-			mask = crypto.HashScalar(crypto.KeyMultPubPriv(&R, &a), index).Bytes()
-			messageHash = append(mask, messageHash...)
-		}
 		r, err := StartSignCommon(result, partyIDs, messageHash, variant)(nil)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
@@ -110,6 +109,12 @@ func checkOutputEd25519(t *testing.T, rounds []round.Session, public curve.Point
 		switch variant {
 		case ProtocolEd25519SHA512:
 			assert.True(t, signature.VerifyEd25519(public, m), "expected valid ed25519 signature")
+		case ProtocolMixinPublic:
+			group := curve.Edwards25519{}
+			r := group.NewScalar()
+			r.UnmarshalBinary(m[:32])
+			P := r.ActOnBase().Add(public)
+			assert.True(t, signature.VerifyEd25519(P, m[32:]), "expected valid mixin signature")
 		default:
 			assert.False(t, signature.VerifyEd25519(public, m), "expected invalid ed25519 signature")
 		}
@@ -125,13 +130,13 @@ func checkOutputEd25519(t *testing.T, rounds []round.Session, public curve.Point
 		assert.Len(t, sig, 64)
 		switch variant {
 		case ProtocolEd25519SHA512:
-			assert.True(t, mpub.Verify(m, msig), "expected valid mixin signature")
+			assert.True(t, mpub.Verify(m, msig), "expected valid ed25519 signature")
 		case ProtocolDefault:
 			challengeHash := hash.New()
 			_ = challengeHash.WriteAny(signature.R, public, messageHash(m))
 			digest := challengeHash.Sum()
 			x, _ := edwards25519.NewScalar().SetUniformBytes(digest[:])
-			assert.True(t, mpub.VerifyWithChallenge(m, msig, x), "expected valid mixin signature")
+			assert.True(t, mpub.VerifyWithChallenge(m, msig, x), "expected valid ed25519 signature")
 		}
 	}
 }

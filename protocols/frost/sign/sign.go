@@ -77,7 +77,7 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 			if err != nil {
 				panic(err)
 			}
-			r.M = r.M[34:]
+			r.M = r.M[32:]
 		}
 
 		return r, nil
