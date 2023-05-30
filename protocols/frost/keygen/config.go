@@ -2,9 +2,12 @@ package keygen
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	"github.com/MixinNetwork/mixin/common"
+	"github.com/MixinNetwork/multi-party-sig/common/params"
+	"github.com/MixinNetwork/multi-party-sig/internal/bip32"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	"github.com/MixinNetwork/multi-party-sig/pkg/taproot"
@@ -55,6 +58,53 @@ func (r *Config) Curve() curve.Curve {
 
 func (r *Config) PublicPoint() curve.Point {
 	return r.PublicKey
+}
+
+// Derive performs an arbitrary derivation of a related key, by adding a scalar.
+//
+// This can support methods like BIP32, but is more general.
+//
+// Optionally, a new chain key can be passed as well.
+func (r *Config) Derive(adjust curve.Scalar, newChainKey []byte) (*Config, error) {
+	if len(newChainKey) <= 0 {
+		newChainKey = r.ChainKey
+	}
+	if len(newChainKey) != params.SecBytes {
+		return nil, fmt.Errorf("expecte %d bytes for chain key, found %d", params.SecBytes, len(newChainKey))
+	}
+
+	adjustG := adjust.ActOnBase()
+
+	verificationShares := make(map[party.ID]curve.Point, len(r.VerificationShares.Points))
+	for k, v := range r.VerificationShares.Points {
+		verificationShares[k] = v.Add(adjustG)
+	}
+	return &Config{
+		ID:                 r.ID,
+		Threshold:          r.Threshold,
+		PrivateShare:       r.PrivateShare.Curve().NewScalar().Set(r.PrivateShare).Add(adjust),
+		PublicKey:          r.PublicKey.Add(adjustG),
+		ChainKey:           newChainKey,
+		VerificationShares: party.NewPointMap(verificationShares),
+	}, nil
+}
+
+// DeriveChild adjusts the shares to represent the derived public key at a certain index.
+//
+// # This will panic if the group is not curve.Secp256k1
+//
+// This derivation works according to BIP-32, see:
+// https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+func (r *Config) DeriveChild(i uint32) (*Config, error) {
+	publicKey, ok := r.PublicKey.(*curve.Secp256k1Point)
+	if !ok {
+		return nil, errors.New("DeriveChild called on non secp256k1 curve")
+	}
+	scalar, newChainKey, err := bip32.DeriveScalar(publicKey, r.ChainKey, i)
+	if err != nil {
+		return nil, err
+	}
+	return r.Derive(scalar, newChainKey)
 }
 
 // TaprootConfig is like result, but for Taproot / BIP-340 keys.
@@ -292,4 +342,70 @@ func (c *TaprootConfig) UnmarshalBinary(data []byte) error {
 func writeBytes(enc *common.Encoder, b []byte) {
 	enc.WriteInt(len(b))
 	enc.Write(b)
+}
+
+// Derive performs an arbitrary derivation of a related key, by adding a scalar.
+//
+// This can support methods like BIP32, but is more general.
+//
+// Optionally, a new chain key can be passed as well.
+func (r *TaprootConfig) Derive(adjust *curve.Secp256k1Scalar, newChainKey []byte) (*TaprootConfig, error) {
+	if len(newChainKey) <= 0 {
+		newChainKey = r.ChainKey
+	}
+	if len(newChainKey) != params.SecBytes {
+		return nil, fmt.Errorf("expecte %d bytes for chain key, found %d", params.SecBytes, len(newChainKey))
+	}
+
+	adjustG := adjust.ActOnBase()
+	verificationShares := make(map[party.ID]curve.Point, len(r.VerificationShares))
+	for k, v := range r.VerificationShares {
+		verificationShares[k] = v.Add(adjustG)
+	}
+
+	privateShare := curve.Secp256k1{}.NewScalar().Set(r.PrivateShare).Add(adjust)
+
+	publicKey, err := curve.Secp256k1{}.LiftX(r.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+	publicKey = publicKey.Add(adjustG).(*curve.Secp256k1Point)
+	// If our public key is odd, we need to negate our secret key, and everything
+	// that entails. This means negating each secret share, and the corresponding
+	// verification shares.
+	if !publicKey.HasEvenY() {
+		privateShare.Negate()
+		for k, v := range verificationShares {
+			verificationShares[k] = v.Negate()
+		}
+	}
+	return &TaprootConfig{
+		ID:                 r.ID,
+		Threshold:          r.Threshold,
+		PrivateShare:       privateShare.(*curve.Secp256k1Scalar),
+		PublicKey:          publicKey.XScalar().Bytes(),
+		ChainKey:           newChainKey,
+		VerificationShares: verificationShares,
+	}, nil
+}
+
+// DeriveChild adjusts the shares to represent the derived public key at a certain index.
+//
+// This derivation works according to BIP-32, see:
+// https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
+//
+// Note that to do this derivation, we interpret the Taproot key as an "old"
+// ECDSA key, with the y coordinate byte set to 0x02. We also only look at the x
+// coordinate of the derived public key, making sure that the corresponding secret
+// key matches the version of this point with an even y coordinate.
+func (r *TaprootConfig) DeriveChild(i uint32) (*TaprootConfig, error) {
+	publicKey, err := curve.Secp256k1{}.LiftX(r.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+	scalar, newChainKey, err := bip32.DeriveScalar(publicKey, r.ChainKey, i)
+	if err != nil {
+		return nil, err
+	}
+	return r.Derive(scalar, newChainKey)
 }
