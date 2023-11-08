@@ -37,7 +37,8 @@ func testSignEdwards25519(t *testing.T, variant int) {
 	secret := sample.Scalar(rand.Reader, group)
 	f := polynomial.NewPolynomial(group, threshold, secret)
 	publicKey := secret.ActOnBase()
-	steak := []byte{0xDE, 0xAD, 0xBE, 0xEF}
+	sh := crypto.Blake3Hash([]byte{0xDE, 0xAD, 0xBE, 0xEF})
+	steak := sh[:]
 	chainKey := make([]byte, params.SecBytes)
 	_, _ = rand.Read(chainKey)
 
@@ -130,13 +131,15 @@ func checkOutputEd25519(t *testing.T, rounds []round.Session, public curve.Point
 		assert.Len(t, sig, 64)
 		switch variant {
 		case ProtocolEd25519SHA512:
-			assert.True(t, mpub.Verify(m, msig), "expected valid ed25519 signature")
+			var mh crypto.Hash
+			copy(mh[:], m)
+			assert.True(t, mpub.Verify(mh, msig), "expected valid ed25519 signature")
 		case ProtocolDefault:
 			challengeHash := hash.New()
 			_ = challengeHash.WriteAny(signature.R, public, messageHash(m))
 			digest := challengeHash.Sum()
 			x, _ := edwards25519.NewScalar().SetUniformBytes(digest[:])
-			assert.True(t, mpub.VerifyWithChallenge(m, msig, x), "expected valid ed25519 signature")
+			assert.True(t, mpub.VerifyWithChallenge(msig, x), "expected valid ed25519 signature")
 		}
 	}
 }
