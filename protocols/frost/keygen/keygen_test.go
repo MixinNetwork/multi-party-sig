@@ -43,6 +43,7 @@ func checkOutput(t *testing.T, group curve.Curve, rounds []round.Session, partie
 	actualPublicKey := privateKey.ActOnBase()
 
 	require.True(t, publicKey.Equal(actualPublicKey))
+	require.Len(t, chainKey, 32)
 
 	shares := make(map[party.ID]curve.Scalar)
 	for _, result := range results {

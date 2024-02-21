@@ -98,9 +98,9 @@ func (r *round3) StoreMessage(msg round.Message) error {
 
 // Finalize implements round.Round.
 func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
-	ChainKey := types.EmptyRID()
+	chainKey := types.EmptyRID()
 	for _, j := range r.PartyIDs() {
-		ChainKey.XOR(r.ChainKeys[j])
+		chainKey.XOR(r.ChainKeys[j])
 	}
 
 	// These steps come from Figure 1, Round 2 of the Frost paper
@@ -163,6 +163,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 			Threshold:          r.threshold,
 			PrivateShare:       r.privateShare,
 			PublicKey:          YSecp.XScalar().Bytes(),
+			ChainKey:           chainKey,
 			VerificationShares: secpVerificationShares,
 		}), nil
 	}
@@ -172,6 +173,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 		Threshold:          r.threshold,
 		PrivateShare:       r.privateShare,
 		PublicKey:          r.publicKey,
+		ChainKey:           chainKey,
 		VerificationShares: party.NewPointMap(r.verificationShares),
 	}), nil
 }
