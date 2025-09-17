@@ -6,12 +6,12 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/cronokirby/saferith"
 	"github.com/MixinNetwork/multi-party-sig/common/params"
 	"github.com/MixinNetwork/multi-party-sig/pkg/pool"
+	"github.com/cronokirby/saferith"
 )
 
-// primes generates an array containing all the odd prime numbers < below
+// primes generates an array containing all the odd prime numbers < below.
 func primes(below uint32) []uint32 {
 	sieve := make([]bool, below)
 	// Initially, all numbers starting from 2 are considered prime
@@ -42,10 +42,10 @@ func primes(below uint32) []uint32 {
 	return out
 }
 
-// The number of numbers to check after our initial prime guess
+// The number of numbers to check after our initial prime guess.
 const sieveSize = 1 << 18
 
-// The upper bound on the prime numbers used for sieving
+// The upper bound on the prime numbers used for sieving.
 const primeBound = 1 << 20
 
 // the number of iterations to use when checking primality
@@ -64,7 +64,7 @@ var initPrimes sync.Once
 // We use a large buffer for sieving, but we would like to reuse these buffers
 // to avoid allocating a bunch of them.
 var sievePool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		sieve := make([]bool, sieveSize)
 		return &sieve
 	},
@@ -96,7 +96,7 @@ func tryBlumPrime(rand io.Reader) *saferith.Nat {
 	sievePtr := sievePool.Get().(*[]bool)
 	sieve := *sievePtr
 	defer sievePool.Put(sievePtr)
-	for i := 0; i < len(sieve); i++ {
+	for i := range sieve {
 		sieve[i] = true
 	}
 	// Remove candidates that aren't 3 mod 4
@@ -128,7 +128,7 @@ func tryBlumPrime(rand io.Reader) *saferith.Nat {
 	}
 	p := new(big.Int)
 	q := new(big.Int)
-	for delta := 0; delta < len(sieve); delta++ {
+	for delta := range sieve {
 		if !sieve[delta] {
 			continue
 		}
@@ -161,7 +161,7 @@ func tryBlumPrime(rand io.Reader) *saferith.Nat {
 // n = pq.
 func Paillier(rand io.Reader, pl *pool.Pool) (p, q *saferith.Nat) {
 	reader := pool.NewLockedReader(rand)
-	results := pl.Search(2, func() interface{} {
+	results := pl.Search(2, func() any {
 		q := tryBlumPrime(reader)
 		// You have to do this, because of how Go handles nil.
 		if q == nil {

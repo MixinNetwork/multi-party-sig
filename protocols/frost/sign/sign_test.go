@@ -3,6 +3,7 @@ package sign
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"maps"
 	"testing"
 
 	"github.com/MixinNetwork/multi-party-sig/common/params"
@@ -140,9 +141,7 @@ func TestSignTaproot(t *testing.T) {
 		}
 		tapRootPublicKey, err := curve.Secp256k1{}.LiftX(newPublicKey)
 		genericVerificationShares := make(map[party.ID]curve.Point)
-		for k, v := range result.VerificationShares {
-			genericVerificationShares[k] = v
-		}
+		maps.Copy(genericVerificationShares, result.VerificationShares)
 		require.NoError(t, err)
 		normalResult := &keygen.Config{
 			ID:                 result.ID,

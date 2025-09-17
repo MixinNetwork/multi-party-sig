@@ -5,13 +5,13 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/cronokirby/saferith"
 	"github.com/MixinNetwork/multi-party-sig/common/params"
 	"github.com/MixinNetwork/multi-party-sig/pkg/hash"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/arith"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"
 	"github.com/MixinNetwork/multi-party-sig/pkg/pedersen"
 	"github.com/MixinNetwork/multi-party-sig/pkg/pool"
+	"github.com/cronokirby/saferith"
 )
 
 type Public struct {
@@ -49,7 +49,7 @@ func NewProof(private Private, hash *hash.Hash, public Public, pl *pool.Pool) *P
 		As [params.StatParam]*big.Int
 	)
 	lockedRand := pool.NewLockedReader(rand.Reader)
-	pl.Parallelize(params.StatParam, func(i int) interface{} {
+	pl.Parallelize(params.StatParam, func(i int) any {
 		// aᵢ ∈ mod ϕ(N)
 		as[i] = sample.ModN(lockedRand, phi)
 
@@ -62,7 +62,7 @@ func NewProof(private Private, hash *hash.Hash, public Public, pl *pool.Pool) *P
 	es, _ := challenge(hash, public, As)
 	// Modular addition is not expensive enough to warrant parallelizing
 	var Zs [params.StatParam]*big.Int
-	for i := 0; i < params.StatParam; i++ {
+	for i := range params.StatParam {
 		z := as[i]
 		// The challenge is public, so branching is ok
 		if es[i] {
@@ -93,7 +93,7 @@ func (p *Proof) Verify(public Public, hash *hash.Hash, pl *pool.Pool) bool {
 	}
 
 	one := big.NewInt(1)
-	verifications := pl.Parallelize(params.StatParam, func(i int) interface{} {
+	verifications := pl.Parallelize(params.StatParam, func(i int) any {
 		var lhs, rhs big.Int
 		z := p.Zs[i]
 		a := p.As[i]
@@ -120,7 +120,7 @@ func (p *Proof) Verify(public Public, hash *hash.Hash, pl *pool.Pool) bool {
 
 		return true
 	})
-	for i := 0; i < len(verifications); i++ {
+	for i := range verifications {
 		ok, _ := verifications[i].(bool)
 		if !ok {
 			return false

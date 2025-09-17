@@ -25,7 +25,7 @@ func NewRID(r io.Reader) (RID, error) {
 
 // XOR modifies the receiver by taking the XOR with the argument.
 func (rid RID) XOR(otherRID RID) {
-	for b := 0; b < params.SecBytes; b++ {
+	for b := range params.SecBytes {
 		rid[b] ^= otherRID[b]
 	}
 }

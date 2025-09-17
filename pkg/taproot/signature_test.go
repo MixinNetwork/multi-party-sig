@@ -9,7 +9,7 @@ import (
 )
 
 func TestSignatureVerification(t *testing.T) {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		steak := sha256.New()
 		steak.Write([]byte{0xDE, 0xAD, 0xBE, 0xEF, byte(i)})
 		steakHash := steak.Sum(nil)

@@ -22,7 +22,7 @@ type StartFunc func(sessionID []byte) (round.Session, error)
 // Handler represents some kind of handler for a protocol.
 type Handler interface {
 	// Result should return the result of running the protocol, or an error
-	Result() (interface{}, error)
+	Result() (any, error)
 	// Listen returns a channel which will receive new messages
 	Listen() <-chan *Message
 	// Stop should abort the protocol execution.
@@ -39,7 +39,7 @@ type MultiHandler struct {
 	currentRound    round.Session
 	rounds          map[round.Number]round.Session
 	err             *Error
-	result          interface{}
+	result          any
 	messages        map[round.Number]map[party.ID]*Message
 	broadcast       map[round.Number]map[party.ID]*Message
 	broadcastHashes map[round.Number][]byte
@@ -66,7 +66,7 @@ func NewMultiHandler(create StartFunc, sessionID []byte) (*MultiHandler, error) 
 }
 
 // Result returns the protocol result if the protocol completed successfully. Otherwise an error is returned.
-func (h *MultiHandler) Result() (interface{}, error) {
+func (h *MultiHandler) Result() (any, error) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 	if h.result != nil {

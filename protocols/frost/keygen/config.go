@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"maps"
 
 	"github.com/MixinNetwork/mixin/common"
 	"github.com/MixinNetwork/multi-party-sig/common/params"
@@ -138,9 +139,7 @@ func (r *TaprootConfig) Clone() *TaprootConfig {
 	chainKeyCopy := make([]byte, len(r.ChainKey))
 	copy(chainKeyCopy, r.ChainKey)
 	verificationSharesCopy := make(map[party.ID]curve.Point)
-	for k, v := range r.VerificationShares {
-		verificationSharesCopy[k] = v
-	}
+	maps.Copy(verificationSharesCopy, r.VerificationShares)
 	return &TaprootConfig{
 		ID:                 r.ID,
 		Threshold:          r.Threshold,

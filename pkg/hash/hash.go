@@ -67,7 +67,7 @@ func (hash *Hash) Sum() []byte {
 //
 // This function will apply its own domain separation for the first two types.
 // The last type already suggests which domain to use, and this function respects it.
-func (hash *Hash) WriteAny(data ...interface{}) error {
+func (hash *Hash) WriteAny(data ...any) error {
 	var toBeWritten WriterToWithDomain
 	for _, d := range data {
 		switch t := d.(type) {
@@ -130,7 +130,7 @@ func (hash *Hash) Clone() *Hash {
 }
 
 // Fork clones this hash, and then writes some data.
-func (hash *Hash) Fork(data ...interface{}) *Hash {
+func (hash *Hash) Fork(data ...any) *Hash {
 	newHash := hash.Clone()
 	_ = newHash.WriteAny(data...)
 	return newHash

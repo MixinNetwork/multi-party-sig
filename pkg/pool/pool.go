@@ -8,9 +8,9 @@ import (
 )
 
 // searchAlone runs f, which may return nil, until count elements are found
-func searchAlone(f func() interface{}, count int) []interface{} {
-	results := make([]interface{}, count)
-	for i := 0; i < len(results); i++ {
+func searchAlone(f func() any, count int) []any {
+	results := make([]any, count)
+	for i := range results {
 		results[i] = nil
 		for ; results[i] == nil; results[i] = f() {
 		}
@@ -19,9 +19,9 @@ func searchAlone(f func() interface{}, count int) []interface{} {
 }
 
 // parallelizeAlone calculates the result of f count times
-func parallelizeAlone(f func(int) interface{}, count int) []interface{} {
-	results := make([]interface{}, count)
-	for i := 0; i < len(results); i++ {
+func parallelizeAlone(f func(int) any, count int) []any {
+	results := make([]any, count)
+	for i := range results {
 		results[i] = f(i)
 	}
 	return results
@@ -39,16 +39,16 @@ type command struct {
 	ctrChanged chan<- struct{}
 	// This is the index we evaluate our function at, when not searching
 	i int
-	f func(int) interface{}
+	f func(int) any
 	// This is the array where we put results
-	results []interface{}
+	results []any
 }
 
 // workerSearch is the subroutine called when doing a search command.
 //
 // We need to keep searching for successful queries of f while *ctr > 0.
 // When we find a successful result, we decrement *ctr.
-func workerSearch(results []interface{}, ctrChanged chan<- struct{}, f func(int) interface{}, ctr *int64) {
+func workerSearch(results []any, ctrChanged chan<- struct{}, f func(int) any, ctr *int64) {
 	for atomic.LoadInt64(ctr) > 0 {
 		res := f(0)
 		if res == nil {
@@ -127,12 +127,12 @@ func (p *Pool) TearDown() {
 // successful.
 //
 // The result will be an array containing the first count successes.
-func (p *Pool) Search(count int, f func() interface{}) []interface{} {
+func (p *Pool) Search(count int, f func() any) []any {
 	if p == nil {
 		return searchAlone(f, count)
 	}
 
-	results := make([]interface{}, count)
+	results := make([]any, count)
 
 	ctr := int64(count)
 	ctrChanged := make(chan struct{})
@@ -140,7 +140,7 @@ func (p *Pool) Search(count int, f func() interface{}) []interface{} {
 		search:     true,
 		ctr:        &ctr,
 		ctrChanged: ctrChanged,
-		f:          func(i int) interface{} { return f() },
+		f:          func(i int) any { return f() },
 		results:    results,
 	}
 	cmdI := 0
@@ -161,12 +161,12 @@ func (p *Pool) Search(count int, f func() interface{}) []interface{} {
 // Parallelize calls a function count times, passing in indices from 0..count-1.
 //
 // The result will be a slice containing [f(0), f(1), ..., f(count - 1)].
-func (p *Pool) Parallelize(count int, f func(int) interface{}) []interface{} {
+func (p *Pool) Parallelize(count int, f func(int) any) []any {
 	if p == nil {
 		return parallelizeAlone(f, count)
 	}
 
-	results := make([]interface{}, count)
+	results := make([]any, count)
 
 	ctr := int64(count)
 	ctrChanged := make(chan struct{})

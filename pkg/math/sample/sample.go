@@ -5,9 +5,9 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/cronokirby/saferith"
 	"github.com/MixinNetwork/multi-party-sig/common/params"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
+	"github.com/cronokirby/saferith"
 )
 
 const maxIterations = 255
@@ -15,7 +15,7 @@ const maxIterations = 255
 var ErrMaxIterations = fmt.Errorf("sample: failed to generate after %d iterations", maxIterations)
 
 func mustReadBits(rand io.Reader, buf []byte) {
-	for i := 0; i < maxIterations; i++ {
+	for range maxIterations {
 		if _, err := io.ReadFull(rand, buf); err == nil {
 			return
 		}
@@ -44,7 +44,7 @@ func UnitModN(rand io.Reader, n *saferith.Modulus) *saferith.Nat {
 	out := new(saferith.Nat)
 	buf := make([]byte, (n.BitLen()+7)/8)
 	n = saferith.ModulusFromNat(n.Nat())
-	for i := 0; i < maxIterations; i++ {
+	for range maxIterations {
 		// PERF: Reuse buffer instead of allocating each time
 		mustReadBits(rand, buf)
 		out.SetBytes(buf)
@@ -60,7 +60,7 @@ func QNR(rand io.Reader, n *saferith.Modulus) *saferith.Nat {
 	var w big.Int
 	nBig := n.Big()
 	buf := make([]byte, params.BitsIntModN/8)
-	for i := 0; i < maxIterations; i++ {
+	for range maxIterations {
 		mustReadBits(rand, buf)
 		w.SetBytes(buf)
 		w.Mod(&w, nBig)
@@ -97,7 +97,7 @@ func Scalar(rand io.Reader, group curve.Curve) curve.Scalar {
 
 // ScalarUnit returns a new *curve.Scalar by reading bytes from rand.
 func ScalarUnit(rand io.Reader, group curve.Curve) curve.Scalar {
-	for i := 0; i < maxIterations; i++ {
+	for range maxIterations {
 		s := Scalar(rand, group)
 		if !s.IsZero() {
 			return s

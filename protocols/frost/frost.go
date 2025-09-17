@@ -7,6 +7,7 @@ import (
 	"github.com/MixinNetwork/multi-party-sig/pkg/protocol"
 	"github.com/MixinNetwork/multi-party-sig/protocols/frost/keygen"
 	"github.com/MixinNetwork/multi-party-sig/protocols/frost/sign"
+	"maps"
 )
 
 type (
@@ -95,9 +96,7 @@ func SignTaproot(config *TaprootConfig, signers []party.ID, messageHash []byte) 
 		}
 	}
 	genericVerificationShares := make(map[party.ID]curve.Point)
-	for k, v := range config.VerificationShares {
-		genericVerificationShares[k] = v
-	}
+	maps.Copy(genericVerificationShares, config.VerificationShares)
 	normalResult := &keygen.Config{
 		ID:                 config.ID,
 		Threshold:          config.Threshold,

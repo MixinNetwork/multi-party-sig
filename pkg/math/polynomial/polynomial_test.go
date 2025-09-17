@@ -6,11 +6,11 @@ import (
 	mrand "math/rand"
 	"testing"
 
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"
 	"github.com/cronokirby/saferith"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
-	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"
 )
 
 func TestPolynomial_Constant(t *testing.T) {
@@ -30,7 +30,7 @@ func TestPolynomial_Evaluate(t *testing.T) {
 	polynomial.coefficients[1] = group.NewScalar()
 	polynomial.coefficients[2] = group.NewScalar().SetNat(new(saferith.Nat).SetUint64(1))
 
-	for index := 0; index < 100; index++ {
+	for range 100 {
 		x := big.NewInt(int64(mrand.Uint32()))
 		result := new(big.Int).Set(x)
 		result.Mul(result, result)

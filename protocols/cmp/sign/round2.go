@@ -116,7 +116,7 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 		DeltaBeta *saferith.Int
 		ChiBeta   *saferith.Int
 	}
-	mtaOuts := r.Pool.Parallelize(len(otherIDs), func(i int) interface{} {
+	mtaOuts := r.Pool.Parallelize(len(otherIDs), func(i int) any {
 		j := otherIDs[i]
 
 		DeltaBeta, DeltaD, DeltaF, DeltaProof := mta.ProveAffG(r.Group(), r.HashForID(r.SelfID()),

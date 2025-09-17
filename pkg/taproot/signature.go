@@ -134,7 +134,7 @@ func (sk SecretKey) Sign(rand io.Reader, m []byte) (Signature, error) {
 
 		t, _ := d.MarshalBinary()
 		aHash := TaggedHash("BIP0340/aux", a)
-		for i := 0; i < 32; i++ {
+		for i := range 32 {
 			t[i] ^= aHash[i]
 		}
 

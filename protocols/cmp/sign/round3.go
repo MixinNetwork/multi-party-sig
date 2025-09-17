@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cronokirby/saferith"
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/paillier"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	zkaffg "github.com/MixinNetwork/multi-party-sig/pkg/zk/affg"
 	zklogstar "github.com/MixinNetwork/multi-party-sig/pkg/zk/logstar"
+	"github.com/cronokirby/saferith"
 )
 
 var _ round.Round = (*round3)(nil)
@@ -175,7 +175,7 @@ func (r *round3) Finalize(out chan<- *round.Message) (round.Session, error) {
 	}
 
 	otherIDs := r.OtherPartyIDs()
-	errs := r.Pool.Parallelize(len(otherIDs), func(i int) interface{} {
+	errs := r.Pool.Parallelize(len(otherIDs), func(i int) any {
 		j := otherIDs[i]
 
 		proofLog := zklogstar.NewProof(r.Group(), r.HashForID(r.SelfID()), zklogstar.Public{

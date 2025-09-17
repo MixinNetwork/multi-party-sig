@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
+	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
-	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"
 )
 
 func TestExponent_Evaluate(t *testing.T) {
 	group := curve.Secp256k1{}
 
 	var lhs curve.Point
-	for x := 0; x < 5; x++ {
+	for x := range 5 {
 		N := 1000
 		secret := group.NewScalar()
 		if x%2 == 0 {

@@ -3,7 +3,7 @@ package round
 // Output is an empty round containing the output of the protocol.
 type Output struct {
 	*Helper
-	Result interface{}
+	Result any
 }
 
 func (Output) VerifyMessage(Message) error                  { return nil }

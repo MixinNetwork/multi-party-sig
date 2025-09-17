@@ -2,6 +2,7 @@ package keygen
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/common/types"
@@ -155,9 +156,7 @@ func (r *round3) Finalize(chan<- *round.Message) (round.Session, error) {
 			}
 		}
 		secpVerificationShares := make(map[party.ID]curve.Point)
-		for k, v := range r.verificationShares {
-			secpVerificationShares[k] = v
-		}
+		maps.Copy(secpVerificationShares, r.verificationShares)
 		return r.ResultRound(&TaprootConfig{
 			ID:                 r.SelfID(),
 			Threshold:          r.threshold,

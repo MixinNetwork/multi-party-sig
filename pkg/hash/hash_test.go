@@ -6,16 +6,16 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/cronokirby/saferith"
-	"github.com/stretchr/testify/assert"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"
+	"github.com/cronokirby/saferith"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHash_WriteAny(t *testing.T) {
 	var err error
 
-	testFunc := func(vs ...interface{}) error {
+	testFunc := func(vs ...any) error {
 		h := New()
 		for _, v := range vs {
 			err = h.WriteAny(v)
@@ -39,7 +39,7 @@ func TestHash_WriteAny(t *testing.T) {
 func TestHash_WriteAny_Collision(t *testing.T) {
 	var err error
 
-	testFunc := func(vs ...interface{}) ([]byte, error) {
+	testFunc := func(vs ...any) ([]byte, error) {
 		h := New()
 		for _, v := range vs {
 			err = h.WriteAny(v)
