@@ -54,8 +54,14 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	}
 
 	// check nil
-	if !body.Sigma_i.IsValid() || body.Phi_i == nil {
+	if body.Sigma_i == nil || body.Phi_i == nil {
 		return round.ErrNilFields
+	}
+	if !body.Sigma_i.IsValid() {
+		return round.ErrNilFields
+	}
+	if body.Phi_i.Degree() != r.threshold {
+		return fmt.Errorf("vss polynomial has incorrect degree: got %d, expected %d", body.Phi_i.Degree(), r.threshold)
 	}
 
 	if err := body.Commitment.Validate(); err != nil {
