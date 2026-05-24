@@ -28,6 +28,13 @@ func TestSignEdwards25519(t *testing.T) {
 
 func testSignEdwards25519(t *testing.T, variant int) {
 	group := curve.Edwards25519{}
+	sessionID := test.SessionID("frost-sign-edwards25519-default")
+	switch variant {
+	case ProtocolEd25519SHA512:
+		sessionID = test.SessionID("frost-sign-edwards25519-sha512")
+	case ProtocolMixinPublic:
+		sessionID = test.SessionID("frost-sign-mixin-public")
+	}
 
 	N := 5
 	threshold := 2
@@ -78,7 +85,7 @@ func testSignEdwards25519(t *testing.T, variant int) {
 			newPublicKey = result.PublicKey
 		}
 		messageHash := steak
-		r, err := StartSignCommon(result, partyIDs, messageHash, variant)(nil)
+		r, err := StartSignCommon(result, partyIDs, messageHash, variant)(sessionID)
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
 	}

@@ -4,13 +4,13 @@ import (
 	mrand "math/rand"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/internal/test"
 	"github.com/MixinNetwork/multi-party-sig/pkg/ecdsa"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/pool"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -36,7 +36,7 @@ func TestRound(t *testing.T) {
 	rounds := make([]round.Session, 0, N)
 	for _, partyID := range partyIDs {
 		c := configs[partyID]
-		r, err := StartSign(c, partyIDs, messageHash, pl)(nil)
+		r, err := StartSign(c, partyIDs, messageHash, pl)(test.SessionID("cmp-sign-round-test"))
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
 	}

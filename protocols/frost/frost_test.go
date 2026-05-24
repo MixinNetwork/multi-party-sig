@@ -17,7 +17,8 @@ import (
 
 func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte, n *test.Network, wg *sync.WaitGroup, group curve.Curve, variant int) {
 	defer wg.Done()
-	h, err := protocol.NewMultiHandler(Keygen(group, id, ids, threshold), nil)
+	sessionPrefix := fmt.Sprintf("frost-%s-%d", group.Name(), variant)
+	h, err := protocol.NewMultiHandler(Keygen(group, id, ids, threshold), test.SessionID(sessionPrefix+"-keygen"))
 	require.NoError(t, err)
 	test.HandlerLoop(id, h, n)
 	r, err := h.Result()
@@ -25,7 +26,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.IsType(t, &Config{}, r)
 	c0 := r.(*Config)
 
-	h, err = protocol.NewMultiHandler(KeygenTaproot(id, ids, threshold), nil)
+	h, err = protocol.NewMultiHandler(KeygenTaproot(id, ids, threshold), test.SessionID(sessionPrefix+"-taproot-keygen"))
 	require.NoError(t, err)
 	test.HandlerLoop(c0.ID, h, n)
 
@@ -35,7 +36,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 
 	c0Taproot := r.(*TaprootConfig)
 
-	h, err = protocol.NewMultiHandler(Sign(c0, ids, message, variant), nil)
+	h, err = protocol.NewMultiHandler(Sign(c0, ids, message, variant), test.SessionID(sessionPrefix+"-sign"))
 	require.NoError(t, err)
 	test.HandlerLoop(c0.ID, h, n)
 
@@ -50,7 +51,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 		assert.True(t, signature.Verify(c0.PublicKey, message))
 	}
 
-	h, err = protocol.NewMultiHandler(SignTaproot(c0Taproot, ids, message), nil)
+	h, err = protocol.NewMultiHandler(SignTaproot(c0Taproot, ids, message), test.SessionID(sessionPrefix+"-taproot-sign"))
 	require.NoError(t, err)
 
 	test.HandlerLoop(c0.ID, h, n)

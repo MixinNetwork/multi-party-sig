@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/fxamacker/cbor/v2"
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
+	"github.com/fxamacker/cbor/v2"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -74,10 +74,10 @@ func Rounds(rounds []round.Session, rule Rule) (error, bool) {
 	if roundType, err = checkAllRoundsSame(rounds); err != nil {
 		return err, false
 	}
-	if roundType.String() == reflect.TypeOf(&round.Output{}).String() {
+	if roundType.String() == reflect.TypeFor[*round.Output]().String() {
 		return nil, true
 	}
-	if roundType.String() == reflect.TypeOf(&round.Abort{}).String() {
+	if roundType.String() == reflect.TypeFor[*round.Abort]().String() {
 		return nil, true
 	}
 

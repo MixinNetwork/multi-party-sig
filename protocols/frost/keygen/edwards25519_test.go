@@ -16,7 +16,7 @@ func TestKeygenEdwards25519(t *testing.T) {
 
 	rounds := make([]round.Session, 0, N)
 	for _, partyID := range partyIDs {
-		r, err := StartKeygenCommon(false, group, partyIDs, N-1, partyID)(nil)
+		r, err := StartKeygenCommon(false, group, partyIDs, N-1, partyID)(test.SessionID("frost-keygen-edwards25519"))
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
 	}

@@ -36,7 +36,7 @@ type Helper struct {
 
 // NewSession creates a new *Helper which can be embedded in the first Round,
 // so that the full struct implements Session.
-// `sessionID` is an optional byte slice that can be provided by the user.
+// `sessionID` is a byte slice that must be provided by the user.
 // When used, it should be unique for each execution of the protocol.
 // It could be a simple counter which is incremented after execution,  or a common random string.
 // `auxInfo` is a variable list of objects which should be included in the session's hash state.
@@ -61,16 +61,19 @@ func NewSession(info Info, sessionID []byte, pl *pool.Pool, auxInfo ...hash.Writ
 		return nil, fmt.Errorf("session: threshold %d is invalid for number of parties %d", info.Threshold, n)
 	}
 
+	// make sure session id is not too short
+	if len(sessionID) < 16 {
+		return nil, errors.New("session: sessionId invalid")
+	}
+
 	var err error
 	h := hash.New()
 
-	if sessionID != nil {
-		if err = h.WriteAny(&hash.BytesWithDomain{
-			TheDomain: "Session ID",
-			Bytes:     sessionID,
-		}); err != nil {
-			return nil, fmt.Errorf("session: %w", err)
-		}
+	if err = h.WriteAny(&hash.BytesWithDomain{
+		TheDomain: "Session ID",
+		Bytes:     sessionID,
+	}); err != nil {
+		return nil, fmt.Errorf("session: %w", err)
 	}
 
 	if err = h.WriteAny(&hash.BytesWithDomain{

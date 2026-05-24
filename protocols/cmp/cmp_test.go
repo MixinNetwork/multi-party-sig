@@ -6,19 +6,19 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/MixinNetwork/multi-party-sig/internal/test"
 	"github.com/MixinNetwork/multi-party-sig/pkg/ecdsa"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	"github.com/MixinNetwork/multi-party-sig/pkg/pool"
 	"github.com/MixinNetwork/multi-party-sig/pkg/protocol"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte, pl *pool.Pool, n *test.Network, wg *sync.WaitGroup) {
 	defer wg.Done()
-	h, err := protocol.NewMultiHandler(Keygen(curve.Secp256k1{}, id, ids, threshold, pl), nil)
+	h, err := protocol.NewMultiHandler(Keygen(curve.Secp256k1{}, id, ids, threshold, pl), test.SessionID("cmp-keygen"))
 	require.NoError(t, err)
 	test.HandlerLoop(id, h, n)
 	r, err := h.Result()
@@ -26,7 +26,7 @@ func do(t *testing.T, id party.ID, ids []party.ID, threshold int, message []byte
 	require.IsType(t, &Config{}, r)
 	c := r.(*Config)
 
-	h, err = protocol.NewMultiHandler(Sign(c, ids, message, pl), nil)
+	h, err = protocol.NewMultiHandler(Sign(c, ids, message, pl), test.SessionID("cmp-sign"))
 	require.NoError(t, err)
 	test.HandlerLoop(c.ID, h, n)
 
@@ -117,11 +117,11 @@ func TestStart(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c.Threshold = tt.threshold
 			var err error
-			_, err = Keygen(group, selfID, tt.partyIDs, tt.threshold, pl)(nil)
+			_, err = Keygen(group, selfID, tt.partyIDs, tt.threshold, pl)(test.SessionID("cmp-start-keygen-" + tt.name))
 			t.Log(err)
 			assert.Error(t, err)
 
-			_, err = Sign(c, tt.partyIDs, m, pl)(nil)
+			_, err = Sign(c, tt.partyIDs, m, pl)(test.SessionID("cmp-start-sign-" + tt.name))
 			t.Log(err)
 			assert.Error(t, err)
 		})

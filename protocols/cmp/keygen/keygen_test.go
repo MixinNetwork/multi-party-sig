@@ -3,14 +3,14 @@ package keygen
 import (
 	"testing"
 
-	"github.com/fxamacker/cbor/v2"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/internal/test"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/pool"
 	"github.com/MixinNetwork/multi-party-sig/protocols/cmp/config"
+	"github.com/fxamacker/cbor/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var group = curve.Secp256k1{}
@@ -70,7 +70,7 @@ func TestKeygen(t *testing.T) {
 			Threshold:        N - 1,
 			Group:            group,
 		}
-		r, err := Start(info, pl)(nil)
+		r, err := Start(info, pl)(test.SessionID("cmp-keygen-round-test"))
 		require.NoError(t, err, "round creation should not result in an error")
 		rounds = append(rounds, r)
 	}

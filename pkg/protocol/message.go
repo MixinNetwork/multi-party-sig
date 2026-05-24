@@ -91,14 +91,17 @@ func (m *Message) toMarshallable() *marshallableMessage {
 }
 
 func (m *Message) MarshalBinary() ([]byte, error) {
-	enc, _ := cbor.CanonicalEncOptions().EncMode()
+	enc, err := cbor.CanonicalEncOptions().EncMode()
+	if err != nil {
+		return nil, err
+	}
 	return enc.Marshal(m.toMarshallable())
 }
 
 func (m *Message) UnmarshalBinary(data []byte) error {
 	deserialized := m.toMarshallable()
 	if err := cbor.Unmarshal(data, deserialized); err != nil {
-		return nil
+		return err
 	}
 	m.SSID = deserialized.SSID
 	m.From = deserialized.From

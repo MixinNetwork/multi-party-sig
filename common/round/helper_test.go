@@ -107,10 +107,25 @@ func TestNewSession(t *testing.T) {
 				Threshold:        tt.threshold,
 				Group:            tt.group,
 			}
-			_, err := round.NewSession(info, nil, nil)
+			_, err := round.NewSession(info, test.SessionID(tt.name), nil)
 			if tt.wantErr == (err == nil) {
 				t.Error(err)
 			}
 		})
 	}
+
+	t.Run("invalid session id", func(t *testing.T) {
+		info := round.Info{
+			ProtocolID:       "TEST",
+			FinalRoundNumber: RNumber,
+			SelfID:           selfID,
+			PartyIDs:         partyIDs,
+			Threshold:        T,
+			Group:            curve.Secp256k1{},
+		}
+		_, err := round.NewSession(info, nil, nil)
+		if err == nil {
+			t.Fatal("expected invalid session ID error")
+		}
+	})
 }
