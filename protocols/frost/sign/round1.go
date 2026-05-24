@@ -2,6 +2,7 @@ package sign
 
 import (
 	"crypto/rand"
+	"io"
 
 	"github.com/MixinNetwork/multi-party-sig/common/round"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
@@ -73,7 +74,10 @@ func (r *round1) Finalize(out chan<- *round.Message) (round.Session, error) {
 	_, _ = nonceHasher.Write(r.Hash().Sum())
 	_, _ = nonceHasher.Write(r.M)
 	a := make([]byte, 32)
-	_, _ = rand.Read(a)
+	rn, err := io.ReadFull(rand.Reader, a)
+	if err != nil || rn != 32 {
+		return r, err
+	}
 	_, _ = nonceHasher.Write(a)
 	nonceDigest := nonceHasher.Digest()
 
