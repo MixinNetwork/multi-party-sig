@@ -97,6 +97,13 @@ func (h *MultiHandler) CanAccept(msg *Message) bool {
 	if !msg.IsFor(r.SelfID()) {
 		return false
 	}
+	// non-broadcast round messages must be addressed specifically to us:
+	// an empty To field is only meaningful for broadcasts and abort
+	// notifications (round number 0). Anything else would cause nil map
+	// lookups, and therefore panics, in the round handlers.
+	if !msg.Broadcast && msg.RoundNumber > 0 && msg.To != r.SelfID() {
+		return false
+	}
 	// is the protocol ID correct
 	if msg.Protocol != r.ProtocolID() {
 		return false

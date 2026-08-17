@@ -36,6 +36,18 @@ func TestHash_WriteAny(t *testing.T) {
 	assert.NoError(t, testFunc([]byte{1, 4, 6}))
 }
 
+func TestHash_WriteAny_UnsupportedType(t *testing.T) {
+	// Unsupported types must produce an error rather than being silently
+	// skipped, which would corrupt the transcript.
+	h := New()
+	assert.Error(t, h.WriteAny(42))
+	assert.Error(t, h.WriteAny(nil))
+	assert.Error(t, h.WriteAny(struct{}{}))
+	// a nil interface of a supported kind must also fail cleanly
+	var p curve.Point
+	assert.Error(t, h.WriteAny(p))
+}
+
 func TestHash_WriteAny_Collision(t *testing.T) {
 	var err error
 

@@ -95,7 +95,9 @@ func (hash *Hash) WriteAny(data ...any) error {
 				Bytes:     bytes,
 			}
 		default:
-			fmt.Println(t)
+			// Silently skipping data would corrupt the transcript, so we
+			// must fail loudly instead.
+			return fmt.Errorf("hash.WriteAny: unsupported type %T", t)
 		}
 
 		// Write out `<length domain><domain><length data><data>` to avoid any ambiguity
