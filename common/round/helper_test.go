@@ -1,6 +1,7 @@
 package round_test
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/MixinNetwork/multi-party-sig/common/round"
@@ -128,4 +129,43 @@ func TestNewSession(t *testing.T) {
 			t.Fatal("expected invalid session ID error")
 		}
 	})
+}
+
+func TestNewSessionIDScalars(t *testing.T) {
+	group := curve.Secp256k1{}
+	q := group.Order().Nat().Big()
+
+	// id1 = q maps to the zero scalar; id2 = 42 and id3 = 42 + q collide
+	zeroID := party.ID(string(q.Bytes()))
+	id2 := party.ID(string(big.NewInt(42).Bytes()))
+	id3 := party.ID(string(new(big.Int).Add(big.NewInt(42), q).Bytes()))
+
+	tests := []struct {
+		name     string
+		selfID   party.ID
+		partyIDs []party.ID
+		wantErr  bool
+	}{
+		{"zero scalar ID", "a", []party.ID{"a", zeroID, "c"}, true},
+		{"empty ID", "a", []party.ID{"a", "", "c"}, true},
+		{"colliding IDs", "a", []party.ID{"a", id2, id3}, true},
+		{"colliding IDs incl. self", id2, []party.ID{id2, id3, "c"}, true},
+		{"valid IDs", "a", []party.ID{"a", "b", "c"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			info := round.Info{
+				ProtocolID:       "TEST",
+				FinalRoundNumber: round.Number(5),
+				SelfID:           tt.selfID,
+				PartyIDs:         tt.partyIDs,
+				Threshold:        1,
+				Group:            group,
+			}
+			_, err := round.NewSession(info, test.SessionID(tt.name), nil)
+			if tt.wantErr == (err == nil) {
+				t.Error(err)
+			}
+		})
+	}
 }

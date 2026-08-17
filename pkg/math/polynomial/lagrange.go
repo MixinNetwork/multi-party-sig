@@ -35,6 +35,10 @@ func getScalarsAndNumerator(group curve.Curve, interpolationDomain []party.ID) (
 	scalars := make(map[party.ID]curve.Scalar, len(interpolationDomain))
 	for _, id := range interpolationDomain {
 		xi := id.Scalar(group)
+		if xi.IsZero() {
+			// a zero evaluation point would address the secret itself
+			panic("polynomial: party ID maps to the zero scalar")
+		}
 		scalars[id] = xi
 		numerator.Mul(xi)
 	}
@@ -68,6 +72,11 @@ func lagrange(group curve.Curve, interpolationDomain map[party.ID]curve.Scalar, 
 	}
 
 	// lⱼ = numerator/denominator
+	if denominator.IsZero() {
+		// duplicate or aliased evaluation points would silently produce
+		// incorrect coefficients (the inversion of 0 returns 0)
+		panic("polynomial: duplicate evaluation points in interpolation domain")
+	}
 	lJ := denominator.Invert()
 	lJ.Mul(numerator)
 	return lJ

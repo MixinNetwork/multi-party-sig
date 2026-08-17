@@ -41,6 +41,9 @@ type Helper struct {
 // It could be a simple counter which is incremented after execution,  or a common random string.
 // `auxInfo` is a variable list of objects which should be included in the session's hash state.
 func NewSession(info Info, sessionID []byte, pl *pool.Pool, auxInfo ...hash.WriterToWithDomain) (*Helper, error) {
+	if info.Group == nil {
+		return nil, errors.New("session: group is nil")
+	}
 	partyIDs := party.NewIDSlice(info.PartyIDs)
 	if !partyIDs.Valid() {
 		return nil, errors.New("session: partyIDs invalid")
@@ -59,6 +62,22 @@ func NewSession(info Info, sessionID []byte, pl *pool.Pool, auxInfo ...hash.Writ
 	// the number of users satisfies the threshold
 	if n := len(partyIDs); n <= 0 || info.Threshold > n-1 {
 		return nil, fmt.Errorf("session: threshold %d is invalid for number of parties %d", info.Threshold, n)
+	}
+
+	// Party IDs are used as evaluation points of the polynomial sharing of the
+	// secret key, so they must map to distinct, non-zero scalars: a zero scalar
+	// would address the secret itself, and a collision would silently corrupt
+	// the Lagrange interpolation.
+	scalars := make(map[string]party.ID, len(partyIDs))
+	for _, id := range partyIDs {
+		s := id.Scalar(info.Group)
+		if s.IsZero() {
+			return nil, fmt.Errorf("session: party ID %q maps to the zero scalar", id)
+		}
+		if otherID, ok := scalars[string(s.Bytes())]; ok {
+			return nil, fmt.Errorf("session: party IDs %q and %q map to the same scalar", otherID, id)
+		}
+		scalars[string(s.Bytes())] = id
 	}
 
 	// make sure session id is not too short
@@ -83,13 +102,11 @@ func NewSession(info Info, sessionID []byte, pl *pool.Pool, auxInfo ...hash.Writ
 		return nil, fmt.Errorf("session: %w", err)
 	}
 
-	if info.Group != nil {
-		if err = h.WriteAny(&hash.BytesWithDomain{
-			TheDomain: "Group Name",
-			Bytes:     []byte(info.Group.Name()),
-		}); err != nil {
-			return nil, fmt.Errorf("session: %w", err)
-		}
+	if err = h.WriteAny(&hash.BytesWithDomain{
+		TheDomain: "Group Name",
+		Bytes:     []byte(info.Group.Name()),
+	}); err != nil {
+		return nil, fmt.Errorf("session: %w", err)
 	}
 
 	if err = h.WriteAny(partyIDs); err != nil {
