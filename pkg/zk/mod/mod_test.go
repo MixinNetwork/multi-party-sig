@@ -120,3 +120,19 @@ func BenchmarkCRT(b *testing.B) {
 		proof = NewProof(hash.New(), private, public, nil)
 	}
 }
+
+func TestModMalformedProofs(t *testing.T) {
+	pl := pool.NewPool(0)
+	defer pl.TearDown()
+	public := Public{N: zk.ProverPaillierPublic.N()}
+
+	var nilProof *Proof
+	assert.NotPanics(t, func() {
+		assert.False(t, nilProof.Verify(public, hash.New(), pl))
+		// nil W must be rejected, not panic
+		assert.False(t, (&Proof{}).Verify(public, hash.New(), pl))
+		// valid W but nil response fields must be rejected, not panic
+		w := sample.QNR(rand.Reader, public.N)
+		assert.False(t, (&Proof{W: w.Big()}).Verify(public, hash.New(), pl))
+	})
+}

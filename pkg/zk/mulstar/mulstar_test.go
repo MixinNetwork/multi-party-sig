@@ -56,3 +56,31 @@ func TestMulG(t *testing.T) {
 
 	assert.True(t, proof3.Verify(group, hash.New(), public))
 }
+
+func TestMulStarMalformedProofs(t *testing.T) {
+	group := curve.Secp256k1{}
+	verifierPaillier := zk.VerifierPaillierPublic
+
+	c := new(saferith.Int).SetUint64(12)
+	C, _ := verifierPaillier.Enc(c)
+	x := sample.IntervalL(rand.Reader)
+	X := group.NewScalar().SetNat(x.Mod(group.Order())).ActOnBase()
+	D := C.Clone().Mul(verifierPaillier, x)
+	rho := sample.UnitModN(rand.Reader, verifierPaillier.N())
+	D.Randomize(verifierPaillier, rho)
+
+	public := Public{
+		C:        C,
+		D:        D,
+		X:        X,
+		Verifier: verifierPaillier,
+		Aux:      zk.Pedersen,
+	}
+
+	var nilProof *Proof
+	assert.NotPanics(t, func() {
+		assert.False(t, nilProof.Verify(group, hash.New(), public))
+		assert.False(t, (&Proof{}).Verify(group, hash.New(), public))
+		assert.False(t, (&Proof{Commitment: &Commitment{}}).Verify(group, hash.New(), public))
+	})
+}

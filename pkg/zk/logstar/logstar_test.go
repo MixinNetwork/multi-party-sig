@@ -49,3 +49,25 @@ func TestLogStar(t *testing.T) {
 
 	assert.True(t, proof3.Verify(hash.New(), public))
 }
+
+func TestLogStarMalformedProofs(t *testing.T) {
+	group := curve.Secp256k1{}
+	prover := zk.ProverPaillierPublic
+
+	x := sample.IntervalL(rand.Reader)
+	C, _ := prover.Enc(x)
+	X := group.NewScalar().SetNat(x.Mod(group.Order())).ActOnBase()
+	public := Public{
+		C:      C,
+		X:      X,
+		Prover: prover,
+		Aux:    zk.Pedersen,
+	}
+
+	var nilProof *Proof
+	assert.NotPanics(t, func() {
+		assert.False(t, nilProof.Verify(hash.New(), public))
+		assert.False(t, (&Proof{}).Verify(hash.New(), public))
+		assert.False(t, (&Proof{Commitment: &Commitment{}}).Verify(hash.New(), public))
+	})
+}

@@ -80,7 +80,13 @@ type Proof struct {
 }
 
 func (p *Proof) IsValid(public Public) bool {
-	if p == nil {
+	if p == nil || p.Commitment == nil {
+		return false
+	}
+	if p.A == nil || p.Bx == nil || p.By == nil || p.E == nil || p.S == nil || p.F == nil || p.T == nil {
+		return false
+	}
+	if p.Z1 == nil || p.Z2 == nil || p.Z3 == nil || p.Z4 == nil || p.W == nil || p.Wy == nil {
 		return false
 	}
 	if !public.Verifier.ValidateCiphertexts(p.A) {

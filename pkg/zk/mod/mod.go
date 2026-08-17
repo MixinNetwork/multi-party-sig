@@ -121,18 +121,24 @@ func makeQuadraticResidue(y, w, pHalf, qHalf *saferith.Nat, n, p, q *saferith.Mo
 }
 
 func (p *Proof) IsValid(public Public) bool {
-	if p == nil {
+	if p == nil || public.N == nil {
 		return false
 	}
 
 	N := public.N.Big()
-	if big.Jacobi(p.W, N) != -1 {
+	// big.Jacobi requires an odd modulus
+	if N.Bit(0) == 0 {
 		return false
 	}
 
 	if !arith.IsValidBigModN(N, p.W) {
 		return false
 	}
+
+	if big.Jacobi(p.W, N) != -1 {
+		return false
+	}
+
 	for _, r := range p.Responses {
 		if !arith.IsValidBigModN(N, r.X, r.Z) {
 			return false
@@ -225,21 +231,13 @@ func (r *Response) Verify(n, w, y *big.Int) bool {
 }
 
 func (p *Proof) Verify(public Public, hash *hash.Hash, pl *pool.Pool) bool {
-	if p == nil {
+	if !p.IsValid(public) {
 		return false
 	}
 	n := public.N.Big()
 	nMod := public.N
-	// check if n is odd and prime
-	if n.Bit(0) == 0 || n.ProbablyPrime(20) {
-		return false
-	}
-
-	if big.Jacobi(p.W, n) != -1 {
-		return false
-	}
-
-	if !arith.IsValidBigModN(n, p.W) {
+	// check that n is not prime
+	if n.ProbablyPrime(20) {
 		return false
 	}
 

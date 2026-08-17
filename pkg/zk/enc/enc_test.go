@@ -44,3 +44,18 @@ func TestEnc(t *testing.T) {
 
 	assert.True(t, proof3.Verify(group, hash.New(), public))
 }
+
+func TestEncMalformedProofs(t *testing.T) {
+	group := curve.Secp256k1{}
+	prover := zk.ProverPaillierPublic
+	k := sample.IntervalL(rand.Reader)
+	K, _ := prover.Enc(k)
+	public := Public{K: K, Prover: prover, Aux: zk.Pedersen}
+
+	var nilProof *Proof
+	assert.NotPanics(t, func() {
+		assert.False(t, nilProof.Verify(group, hash.New(), public))
+		assert.False(t, (&Proof{}).Verify(group, hash.New(), public))
+		assert.False(t, (&Proof{Commitment: &Commitment{}}).Verify(group, hash.New(), public))
+	})
+}

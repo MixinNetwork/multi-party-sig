@@ -58,7 +58,10 @@ type Proof struct {
 }
 
 func (p *Proof) IsValid(public Public) bool {
-	if p == nil {
+	if p == nil || p.Commitment == nil {
+		return false
+	}
+	if p.A == nil || p.Bx == nil || p.E == nil || p.S == nil || p.Z1 == nil || p.Z2 == nil || p.W == nil {
 		return false
 	}
 	if !arith.IsValidNatModN(public.Verifier.N(), p.W) {

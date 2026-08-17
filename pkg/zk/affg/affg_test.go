@@ -64,3 +64,36 @@ func TestAffG(t *testing.T) {
 	assert.True(t, proof3.Verify(hash.New(), public))
 
 }
+
+func TestAffGMalformedProofs(t *testing.T) {
+	group := curve.Secp256k1{}
+	verifierPaillier := zk.VerifierPaillierPublic
+	prover := zk.ProverPaillierPublic
+
+	c := new(saferith.Int).SetUint64(12)
+	C, _ := verifierPaillier.Enc(c)
+	x := sample.IntervalL(rand.Reader)
+	X := group.NewScalar().SetNat(x.Mod(group.Order())).ActOnBase()
+	y := sample.IntervalLPrime(rand.Reader)
+	Y, _ := prover.Enc(y)
+	tmp := C.Clone().Mul(verifierPaillier, x)
+	D, _ := verifierPaillier.Enc(y)
+	D.Add(verifierPaillier, tmp)
+
+	public := Public{
+		Kv:       C,
+		Dv:       D,
+		Fp:       Y,
+		Xp:       X,
+		Prover:   prover,
+		Verifier: verifierPaillier,
+		Aux:      zk.Pedersen,
+	}
+
+	var nilProof *Proof
+	assert.NotPanics(t, func() {
+		assert.False(t, nilProof.Verify(hash.New(), public))
+		assert.False(t, (&Proof{}).Verify(hash.New(), public))
+		assert.False(t, (&Proof{Commitment: &Commitment{}}).Verify(hash.New(), public))
+	})
+}

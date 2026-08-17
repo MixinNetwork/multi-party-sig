@@ -2,6 +2,7 @@ package polynomial
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"testing"
 
@@ -83,4 +84,27 @@ func TestMarshall(t *testing.T) {
 	err = cbor.Unmarshal(out, polyExp2)
 	require.NoError(t, err, "failed to Unmarshal")
 	assert.True(t, polyExp.Equal(*polyExp2), "should be the same")
+}
+
+func TestExponent_UnmarshalBinaryMalformed(t *testing.T) {
+	group := curve.Secp256k1{}
+
+	assert.NotPanics(t, func() {
+		// short input must return an error, not panic
+		e := EmptyExponent(group)
+		assert.Error(t, e.UnmarshalBinary(nil))
+		assert.Error(t, e.UnmarshalBinary([]byte{1, 2, 3}))
+
+		// a huge claimed coefficient count must be rejected before allocation
+		e = EmptyExponent(group)
+		data := make([]byte, 4)
+		binary.BigEndian.PutUint32(data, 0xFFFFFFFF)
+		assert.Error(t, e.UnmarshalBinary(data))
+
+		// a claimed count exceeding what the data can hold must be rejected
+		e = EmptyExponent(group)
+		data = make([]byte, 64)
+		binary.BigEndian.PutUint32(data, 1024)
+		assert.Error(t, e.UnmarshalBinary(data))
+	})
 }

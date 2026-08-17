@@ -3,6 +3,7 @@ package polynomial
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
@@ -188,8 +189,19 @@ func (e *Exponent) UnmarshalBinary(data []byte) error {
 	if e == nil || e.group == nil {
 		return errors.New("can't unmarshal Exponent with no group")
 	}
+	if len(data) < 4 {
+		return errors.New("can't unmarshal Exponent: data too short")
+	}
 	group := e.group
 	size := binary.BigEndian.Uint32(data)
+	// Every serialized coefficient occupies at least 32 bytes, so a well-formed
+	// message can never contain more than len(data)/32 of them. Enforcing this
+	// bound before allocating prevents memory exhaustion from a malformed or
+	// malicious length prefix.
+	const minSerializedPointSize = 32
+	if uint64(size) > uint64(len(data))/minSerializedPointSize {
+		return fmt.Errorf("can't unmarshal Exponent: claimed %d coefficients in %d bytes", size, len(data))
+	}
 	e.coefficients = make([]curve.Point, int(size))
 	for i := 0; i < len(e.coefficients); i++ {
 		e.coefficients[i] = group.NewPoint()

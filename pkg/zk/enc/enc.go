@@ -49,7 +49,10 @@ type Proof struct {
 }
 
 func (p *Proof) IsValid(public Public) bool {
-	if p == nil {
+	if p == nil || p.Commitment == nil {
+		return false
+	}
+	if p.S == nil || p.A == nil || p.C == nil || p.Z1 == nil || p.Z2 == nil || p.Z3 == nil {
 		return false
 	}
 	if !public.Prover.ValidateCiphertexts(p.A) {
