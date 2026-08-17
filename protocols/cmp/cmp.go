@@ -13,6 +13,8 @@ import (
 
 // Config represents the stored state of a party who participated in a successful `Keygen` protocol.
 // It contains secret key material and should be safely stored.
+// The serialized form must be protected against unauthorized modification (e.g. with a MAC
+// or a signature): loading a tampered Config can compromise the signing key.
 type Config = config.Config
 
 // EmptyConfig creates an empty Config with a fixed group, ready for unmarshalling.

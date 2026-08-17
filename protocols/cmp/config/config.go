@@ -20,6 +20,12 @@ import (
 // It also represents the `SSID` after having performed a keygen/refresh operation.
 // where SSID = (𝔾, t, n, P₁, …, Pₙ, (X₁, Y₁, N₁, s₁, t₁), …, (Xₙ, Yₙ, Nₙ, sₙ, tₙ)).
 //
+// A Config contains secret key material and must be stored with both confidentiality
+// AND integrity protection. An attacker who can modify a stored Config (and distribute
+// matching modifications to the other parties) can recover key shares during signing.
+// The serialized form of a Config should therefore be authenticated (e.g. with a MAC
+// or a signature) whenever it is persisted or transmitted.
+//
 // To unmarshal this struct, EmptyConfig should be called first with a specific group,
 // before using cbor.Unmarshal with that struct.
 type Config struct {

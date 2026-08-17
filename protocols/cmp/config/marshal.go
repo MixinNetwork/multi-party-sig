@@ -97,6 +97,14 @@ func (c *Config) UnmarshalBinary(data []byte) error {
 	}
 	paillierSecret := paillier.NewSecretKeyFromPrimes(cm.P, cm.Q)
 
+	// validate RID and ChainKey
+	if err := cm.RID.Validate(); err != nil {
+		return fmt.Errorf("config: %w", err)
+	}
+	if err := cm.ChainKey.Validate(); err != nil {
+		return fmt.Errorf("config: chain key: %w", err)
+	}
+
 	// handle public parameters
 	ps := make(map[party.ID]*Public, len(cm.Public))
 	for _, pm := range cm.Public {
@@ -113,6 +121,11 @@ func (c *Config) UnmarshalBinary(data []byte) error {
 
 		// handle our own key separately
 		if p.ID == cm.ID {
+			// our own Pedersen parameters (S, T) come from the serialized data,
+			// so they must be validated as well.
+			if err := pedersen.ValidateParameters(paillierSecret.N(), p.S, p.T); err != nil {
+				return fmt.Errorf("config: party %s: %w", p.ID, err)
+			}
 			ps[p.ID] = &Public{
 				ECDSA:    cm.ECDSA.ActOnBase(),
 				ElGamal:  cm.ElGamal.ActOnBase(),

@@ -17,6 +17,7 @@ var (
 	ErrPrimeBadLength = errors.New("prime factor is not the right length")
 	ErrNotBlum        = errors.New("prime factor is not equivalent to 3 (mod 4)")
 	ErrNotSafePrime   = errors.New("supposed prime factor is not a safe prime")
+	ErrNotPrime       = errors.New("supposed prime factor is not prime")
 	ErrPrimeNil       = errors.New("prime is nil")
 )
 
@@ -154,10 +155,15 @@ func (sk SecretKey) GeneratePedersen() (*pedersen.Parameters, *saferith.Nat) {
 	return ped, lambda
 }
 
+// probablyPrimeRounds is the number of Miller-Rabin rounds performed (in addition
+// to a Baillie-PSW test) when validating Paillier prime factors.
+const probablyPrimeRounds = 20
+
 // ValidatePrime checks whether p is a suitable prime for Paillier.
 // Checks:
 // - log₂(p) ≡ params.BitsBlumPrime.
 // - p ≡ 3 (mod 4).
+// - p is prime.
 // - q := (p-1)/2 is prime.
 func ValidatePrime(p *saferith.Nat) error {
 	if p == nil {
@@ -175,10 +181,15 @@ func ValidatePrime(p *saferith.Nat) error {
 		return ErrNotBlum
 	}
 
+	// check p is prime
+	if !p.Big().ProbablyPrime(probablyPrimeRounds) {
+		return ErrNotPrime
+	}
+
 	// check (p-1)/2 is prime
 	pMinus1Div2 := new(saferith.Nat).Rsh(p, 1, -1)
 
-	if !pMinus1Div2.Big().ProbablyPrime(1) {
+	if !pMinus1Div2.Big().ProbablyPrime(probablyPrimeRounds) {
 		return ErrNotSafePrime
 	}
 	return nil
