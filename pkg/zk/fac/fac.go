@@ -11,6 +11,9 @@ import (
 )
 
 type Public struct {
+	// N is the modulus whose factorization is being proven (N = p⋅q, with p, q large).
+	N *saferith.Modulus
+	// Aux are the verifier's Pedersen parameters (N̂, s, t), used to commit to the factors.
 	Aux *pedersen.Parameters
 }
 
@@ -37,7 +40,7 @@ type Proof struct {
 }
 
 func NewProof(private Private, hash *hash.Hash, public Public) *Proof {
-	N := public.Aux.NArith()
+	Nhat := public.Aux.NArith()
 
 	// Figure 28, point 1.
 	alpha := sample.IntervalLEpsRootN(rand.Reader)
@@ -55,8 +58,8 @@ func NewProof(private Private, hash *hash.Hash, public Public) *Proof {
 	Q := public.Aux.Commit(qInt, nu)
 	A := public.Aux.Commit(alpha, x)
 	B := public.Aux.Commit(beta, y)
-	T := N.ExpI(Q, alpha)
-	T.ModMul(T, N.ExpI(public.Aux.T(), r), N.Modulus)
+	T := Nhat.ExpI(Q, alpha)
+	T.ModMul(T, Nhat.ExpI(public.Aux.T(), r), Nhat.Modulus)
 
 	comm := Commitment{P, Q, A, B, T}
 
@@ -97,38 +100,42 @@ func (p *Proof) Verify(public Public, hash *hash.Hash) bool {
 	if p == nil {
 		return false
 	}
+	// guard against malformed (e.g. CBOR-decoded) proofs and statements
+	if public.N == nil || public.Aux == nil {
+		return false
+	}
+	if p.Comm.P == nil || p.Comm.Q == nil || p.Comm.A == nil || p.Comm.B == nil || p.Comm.T == nil ||
+		p.Sigma == nil || p.Z1 == nil || p.Z2 == nil || p.W1 == nil || p.W2 == nil || p.V == nil {
+		return false
+	}
 
 	e, err := challenge(hash, public, p.Comm)
 	if err != nil {
 		return false
 	}
 
-	N := public.Aux.N()
-	NArith := public.Aux.NArith()
+	N0 := public.N
+	NhatArith := public.Aux.NArith()
+	Nhat := NhatArith.Modulus
+
+	if !public.Aux.Verify(p.Z1, p.W1, e, p.Comm.A, p.Comm.P) {
+		return false
+	}
+
+	if !public.Aux.Verify(p.Z2, p.W2, e, p.Comm.B, p.Comm.Q) {
+		return false
+	}
+
 	// Setting R this way avoid issues with the other exponent functions which
 	// might try and apply the CRT.
 	R := new(saferith.Nat).SetNat(public.Aux.S())
-	R.ExpI(R, new(saferith.Int).SetNat(N.Nat()), N)
-	R.ModMul(R, NArith.ExpI(public.Aux.T(), p.Sigma), N)
+	R = NhatArith.Exp(R, N0.Nat())
+	R.ModMul(R, NhatArith.ExpI(public.Aux.T(), p.Sigma), Nhat)
 
-	lhs := public.Aux.Commit(p.Z1, p.W1)
-	rhs := NArith.ExpI(p.Comm.P, e)
-	rhs.ModMul(rhs, p.Comm.A, N)
-	if lhs.Eq(rhs) != 1 {
-		return false
-	}
-
-	lhs = public.Aux.Commit(p.Z2, p.W2)
-	rhs = NArith.ExpI(p.Comm.Q, e)
-	rhs.ModMul(rhs, p.Comm.B, N)
-	if lhs.Eq(rhs) != 1 {
-		return false
-	}
-
-	lhs = NArith.ExpI(p.Comm.Q, p.Z1)
-	lhs.ModMul(lhs, NArith.ExpI(public.Aux.T(), p.V), N)
-	rhs = NArith.ExpI(R, e)
-	rhs.ModMul(rhs, p.Comm.T, N)
+	lhs := NhatArith.ExpI(p.Comm.Q, p.Z1)
+	lhs.ModMul(lhs, NhatArith.ExpI(public.Aux.T(), p.V), Nhat)
+	rhs := NhatArith.ExpI(R, e)
+	rhs.ModMul(rhs, p.Comm.T, Nhat)
 	if lhs.Eq(rhs) != 1 {
 		return false
 	}
@@ -138,16 +145,11 @@ func (p *Proof) Verify(public Public, hash *hash.Hash) bool {
 }
 
 func challenge(hash *hash.Hash, public Public, commitment Commitment) (*saferith.Int, error) {
-	err := hash.WriteAny(public.Aux, commitment.P, commitment.Q, commitment.A, commitment.B, commitment.T)
+	err := hash.WriteAny(public.N, public.Aux, commitment.P, commitment.Q, commitment.A, commitment.B, commitment.T)
 	if err != nil {
 		return nil, err
 	}
-	// Figure 28, point 2:
-	// "Verifier replies with e <- +-q"
-	// DEVIATION:
-	// This doesn't make any sense, since we don't know the secret factor q,
-	// and involving the size of scalars doesn't make sense.
-	// I think that this is a typo in the paper, and instead it should
-	// be +-2^eps.
-	return sample.IntervalEps(hash.Digest()), nil
+	// Figure 26, point 2:
+	// "Verifier replies with e <- ±2ˡ"
+	return sample.IntervalL(hash.Digest()), nil
 }
