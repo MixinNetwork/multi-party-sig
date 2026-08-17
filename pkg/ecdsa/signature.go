@@ -22,6 +22,12 @@ func EmptySignature(group curve.Curve) Signature {
 func (sig Signature) Verify(X curve.Point, hash []byte) bool {
 	group := X.Curve()
 
+	// Reject the point at infinity as public key, otherwise the verification
+	// equation degenerates and (R = [t]G, s = t⁻¹⋅m) is a universal forgery.
+	if X.IsIdentity() {
+		return false
+	}
+
 	r := sig.R.XScalar()
 
 	if r.IsZero() || sig.S.IsZero() {

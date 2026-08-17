@@ -59,3 +59,25 @@ func TestSignature_Verify_Zero(t *testing.T) {
 }
 
 // TODO Do we need a test for R or S > group modulus?
+
+func TestSignature_Verify_IdentityPublicKey(t *testing.T) {
+	group := curve.Secp256k1{}
+
+	m := []byte("forgery attempt")
+	// the identity point as public key
+	X := group.NewPoint()
+	assert.Equal(t, true, X.IsIdentity())
+
+	// universal forgery under an identity public key: R = [t]G, s = t⁻¹⋅m
+	tScalar := sample.Scalar(rand.Reader, group)
+	mScalar := curve.FromHash(group, m)
+	s := group.NewScalar().Set(tScalar).Invert().Mul(mScalar)
+	R := tScalar.ActOnBase()
+	sig := &Signature{
+		R: R,
+		S: s,
+	}
+	if sig.Verify(X, m) {
+		t.Error("signature under identity public key should not verify")
+	}
+}
