@@ -3,10 +3,11 @@ package pedersen
 import (
 	"fmt"
 	"io"
+	"math/big"
 
-	"github.com/cronokirby/saferith"
 	"github.com/MixinNetwork/multi-party-sig/common/params"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/arith"
+	"github.com/cronokirby/saferith"
 )
 
 type Error string
@@ -15,6 +16,9 @@ const (
 	ErrNilFields    Error = "contains nil field"
 	ErrSEqualT      Error = "S cannot be equal to T"
 	ErrNotValidModN Error = "S and T must be in [1,…,N-1] and coprime to N"
+	ErrNEven        Error = "N must be odd"
+	ErrTrivial      Error = "S and T must not be ±1 (mod N)"
+	ErrNotQR        Error = "S and T must have Jacobi symbol +1 (mod N)"
 )
 
 func (e Error) Error() string {
@@ -38,8 +42,11 @@ func New(n *arith.Modulus, s, t *saferith.Nat) *Parameters {
 
 // ValidateParameters check n, s and t, and returns an error if any of the following is true:
 // - n, s, or t is nil.
+// - n is even.
 // - s, t are not in [1, …,n-1].
 // - s, t are not coprime to N.
+// - s or t is ±1 (mod N) (these have order 1 or 2 and make commitments degenerate).
+// - s or t has Jacobi symbol ≠ +1 (mod N) (s, t must be quadratic residues).
 // - s = t.
 func ValidateParameters(n *saferith.Modulus, s, t *saferith.Nat) error {
 	if n == nil || s == nil || t == nil {
@@ -48,6 +55,25 @@ func ValidateParameters(n *saferith.Modulus, s, t *saferith.Nat) error {
 	// s, t ∈ ℤₙˣ
 	if !arith.IsValidNatModN(n, s, t) {
 		return ErrNotValidModN
+	}
+	nBig := n.Big()
+	// N must be odd (it is a Blum modulus); this is also required for big.Jacobi.
+	if nBig.Bit(0) == 0 {
+		return ErrNEven
+	}
+	// s, t ∉ {±1}: elements of order 1 or 2 make Pedersen commitments degenerate.
+	one := big.NewInt(1)
+	nMinusOne := new(big.Int).Sub(nBig, one)
+	sBig, tBig := s.Big(), t.Big()
+	if sBig.Cmp(one) == 0 || sBig.Cmp(nMinusOne) == 0 ||
+		tBig.Cmp(one) == 0 || tBig.Cmp(nMinusOne) == 0 {
+		return ErrTrivial
+	}
+	// s, t must be non-trivial quadratic residues: Jacobi symbol +1 rules out the
+	// remaining small-order elements and non-residues. For a safe-prime modulus,
+	// any unit ∉ {±1} with Jacobi symbol +1 has order divisible by a large prime.
+	if big.Jacobi(sBig, nBig) != 1 || big.Jacobi(tBig, nBig) != 1 {
+		return ErrNotQR
 	}
 	// s ≡ t
 	if _, eq, _ := s.Cmp(t); eq == 1 {

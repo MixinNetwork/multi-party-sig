@@ -19,6 +19,21 @@ func TestModN(t *testing.T) {
 	}
 }
 
+func TestUnitModN(t *testing.T) {
+	// use a modulus well below the next power of two, so that a missing range
+	// check would be caught quickly: ~3/4 of random 32-bit values are ≥ n.
+	n := saferith.ModulusFromUint64(3 * 11 * 65537 * 65599)
+	for i := 0; i < 512; i++ {
+		u := UnitModN(rand.Reader, n)
+		if _, _, lt := u.CmpMod(n); lt != 1 {
+			t.Fatalf("UnitModN generated a number >= n: %v", u)
+		}
+		if u.IsUnit(n) != 1 {
+			t.Fatalf("UnitModN generated a non-unit: %v", u)
+		}
+	}
+}
+
 const blumPrimeProbabilityIterations = 20
 
 func TestPaillier(t *testing.T) {

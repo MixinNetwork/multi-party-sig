@@ -248,6 +248,12 @@ func (p *Proof) Verify(public Public, hash *hash.Hash, pl *pool.Pool) bool {
 	if err != nil {
 		return false
 	}
+	// check that yᵢ ∈ ℤₙˣ for every i (CGGMP24 revision, Figure 12)
+	for _, y := range ys {
+		if !arith.IsValidNatModN(nMod, y) {
+			return false
+		}
+	}
 	verifications := pl.Parallelize(params.StatParam, func(i int) any {
 		return p.Responses[i].Verify(n, p.W, ys[i].Big())
 	})

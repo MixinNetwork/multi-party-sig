@@ -2,6 +2,7 @@ package pedersen
 
 import (
 	"crypto/rand"
+	"math/big"
 	"testing"
 
 	"github.com/cronokirby/saferith"
@@ -25,6 +26,62 @@ func init() {
 // These exist to avoid optimization.
 var resultBig *saferith.Nat
 var resultBool bool
+
+func TestValidateParameters(t *testing.T) {
+	p, _ := new(saferith.Nat).SetHex("D08769E92F80F7FDFB85EC02AFFDAED0FDE2782070757F191DCDC4D108110AC1E31C07FC253B5F7B91C5D9F203AA0572D3F2062A3D2904C535C6ACCA7D5674E1C2640720E762C72B66931F483C2D910908CF02EA6723A0CBBB1016CA696C38FEAC59B31E40584C8141889A11F7A38F5B17811D11F42CD15B8470F11C6183802B")
+	q, _ := new(saferith.Nat).SetHex("C21239C3484FC3C8409F40A9A22FABFFE26CA10C27506E3E017C2EC8C4B98D7A6D30DED0686869884BE9BAD27F5241B7313F73D19E9E4B384FABF9554B5BB4D517CBAC0268420C63D545612C9ADABEEDF20F94244E7F8F2080B0C675AC98D97C580D43375F999B1AC127EC580B89B2D302EF33DD5FD8474A241B0398F6088CA7")
+	n := arith.ModulusFromFactors(p, q)
+
+	sPed, tPed, _ := sample.Pedersen(rand.Reader, new(saferith.Nat).Mul(new(saferith.Nat).Sub(p, new(saferith.Nat).SetUint64(1), -1), new(saferith.Nat).Sub(q, new(saferith.Nat).SetUint64(1), -1), -1), n.Modulus)
+
+	// honestly generated parameters are accepted
+	if err := ValidateParameters(n.Modulus, sPed, tPed); err != nil {
+		t.Error("valid parameters rejected:", err)
+	}
+
+	one := new(saferith.Nat).SetUint64(1)
+	nMinusOne := new(saferith.Nat).Sub(n.Nat(), one, -1)
+
+	// s = 1 (order 1)
+	if err := ValidateParameters(n.Modulus, one, tPed); err == nil {
+		t.Error("s = 1 accepted")
+	}
+	// s = N-1 (order 2)
+	if err := ValidateParameters(n.Modulus, nMinusOne, tPed); err == nil {
+		t.Error("s = -1 accepted")
+	}
+	// t = 1
+	if err := ValidateParameters(n.Modulus, sPed, one); err == nil {
+		t.Error("t = 1 accepted")
+	}
+	// s = t
+	if err := ValidateParameters(n.Modulus, sPed, sPed); err == nil {
+		t.Error("s = t accepted")
+	}
+
+	// non-trivial square root of 1: x ≡ -1 (mod p), x ≡ 1 (mod q); order 2, Jacobi -1
+	pBig, qBig, nBig := p.Big(), q.Big(), n.Nat().Big()
+	pInv := new(big.Int).ModInverse(pBig, qBig)
+	k := new(big.Int).Mod(new(big.Int).Mul(big.NewInt(2), pInv), qBig)
+	x := new(big.Int).Mod(new(big.Int).Sub(new(big.Int).Mul(pBig, k), big.NewInt(1)), nBig)
+	if big.Jacobi(x, nBig) != -1 {
+		t.Fatal("test setup error: root of unity should have Jacobi symbol -1")
+	}
+	xNat := new(saferith.Nat).SetBig(x, x.BitLen())
+	if err := ValidateParameters(n.Modulus, xNat, tPed); err == nil {
+		t.Error("order-2 s accepted")
+	}
+
+	// s with Jacobi symbol -1 (non-residue)
+	nonResidue := new(big.Int).SetInt64(2)
+	for big.Jacobi(nonResidue, nBig) != -1 {
+		nonResidue.Add(nonResidue, big.NewInt(1))
+	}
+	nrNat := new(saferith.Nat).SetBig(nonResidue, nonResidue.BitLen())
+	if err := ValidateParameters(n.Modulus, nrNat, tPed); err == nil {
+		t.Error("non-quadratic-residue s accepted")
+	}
+}
 
 func BenchmarkPedersenCommit(b *testing.B) {
 	b.StopTimer()

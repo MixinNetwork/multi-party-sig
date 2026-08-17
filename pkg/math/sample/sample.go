@@ -40,6 +40,9 @@ func ModN(rand io.Reader, n *saferith.Modulus) *saferith.Nat {
 }
 
 // UnitModN returns a u ∈ ℤₙˣ.
+//
+// The result is uniform over ℤₙˣ: values are rejection-sampled to lie in [0, n),
+// so that no residue class is more likely than another.
 func UnitModN(rand io.Reader, n *saferith.Modulus) *saferith.Nat {
 	out := new(saferith.Nat)
 	buf := make([]byte, (n.BitLen()+7)/8)
@@ -48,6 +51,9 @@ func UnitModN(rand io.Reader, n *saferith.Modulus) *saferith.Nat {
 		// PERF: Reuse buffer instead of allocating each time
 		mustReadBits(rand, buf)
 		out.SetBytes(buf)
+		if _, _, lt := out.CmpMod(n); lt != 1 {
+			continue
+		}
 		if out.IsUnit(n) == 1 {
 			return out
 		}
