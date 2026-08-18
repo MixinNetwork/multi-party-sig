@@ -35,7 +35,7 @@ type command struct {
 	search bool
 	// This counter indicates the number of results that still need to be produced.
 	ctr *int64
-	// This channel is used to signal that the counter was modified
+	// This channel is used to signal that a result was stored.
 	ctrChanged chan<- struct{}
 	// This is the index we evaluate our function at, when not searching
 	i int
@@ -55,9 +55,16 @@ func workerSearch(results []any, ctrChanged chan<- struct{}, f func(int) any, ct
 			continue
 		}
 		i := atomic.AddInt64(ctr, -1)
-		if i >= 0 {
-			results[i] = res
+		if i < 0 {
+			// Another worker already produced the last needed result.
+			// Don't store anything, and don't signal either: the caller
+			// expects exactly one signal per stored result, and may read
+			// the results as soon as it has received all of them.
+			break
 		}
+		// The result must be stored before signaling: the signal is what
+		// synchronizes this store with the caller's read of results.
+		results[i] = res
 		ctrChanged <- struct{}{}
 	}
 }
@@ -135,7 +142,7 @@ func (p *Pool) Search(count int, f func() any) []any {
 	results := make([]any, count)
 
 	ctr := int64(count)
-	ctrChanged := make(chan struct{})
+	ctrChanged := make(chan struct{}, count)
 	cmd := command{
 		search:     true,
 		ctr:        &ctr,
@@ -144,15 +151,20 @@ func (p *Pool) Search(count int, f func() any) []any {
 		results:    results,
 	}
 	cmdI := 0
+	received := 0
 	for cmdI < p.workerCount {
 		select {
 		case p.commands <- cmd:
 			cmdI++
 		case <-ctrChanged:
+			received++
 		}
 	}
-	for atomic.LoadInt64(&ctr) > 0 {
+	// Wait for exactly one signal per requested result: each signal
+	// synchronizes-with the store it follows, guaranteeing visibility.
+	for received < count {
 		<-ctrChanged
+		received++
 	}
 
 	return results
@@ -169,8 +181,9 @@ func (p *Pool) Parallelize(count int, f func(int) any) []any {
 	results := make([]any, count)
 
 	ctr := int64(count)
-	ctrChanged := make(chan struct{})
+	ctrChanged := make(chan struct{}, count)
 	cmdI := 0
+	received := 0
 	for cmdI < count {
 		cmd := command{
 			search:     false,
@@ -187,10 +200,12 @@ func (p *Pool) Parallelize(count int, f func(int) any) []any {
 		case p.commands <- cmd:
 			cmdI++
 		case <-ctrChanged:
+			received++
 		}
 	}
-	for atomic.LoadInt64(&ctr) > 0 {
+	for received < count {
 		<-ctrChanged
+		received++
 	}
 
 	return results
