@@ -56,6 +56,11 @@ func NewPublicKey(n *saferith.Modulus) *PublicKey {
 // ValidateN performs basic checks to make sure the modulus is valid:
 // - log₂(n) = params.BitsPaillier.
 // - n is odd.
+//
+// Note: saferith.Modulus always normalizes its announced length to its true
+// bit length on construction (see ModulusFromNat / UnmarshalBinary), so a
+// zero-padded modulus encoding cannot be used to inflate the cost of the
+// constant-time arithmetic performed with this key.
 func ValidateN(n *saferith.Modulus) error {
 	if n == nil {
 		return ErrPaillierNil
@@ -117,6 +122,13 @@ func (pk PublicKey) Equal(other *PublicKey) bool {
 func (pk PublicKey) ValidateCiphertexts(cts ...*Ciphertext) bool {
 	for _, ct := range cts {
 		if ct == nil {
+			return false
+		}
+		// Belt-and-suspenders against padded encodings: the announced length
+		// drives the cost of the checks below. The decode path already caps
+		// this (see UnmarshalBinary); keep the check for constructions that
+		// bypass it.
+		if ct.c.AnnouncedLen() > 2*params.BitsPaillier+64 {
 			return false
 		}
 		_, _, lt := ct.c.CmpMod(pk.nSquared.Modulus)

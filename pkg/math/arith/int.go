@@ -7,10 +7,23 @@ import (
 	"github.com/cronokirby/saferith"
 )
 
+// maxAnnouncedSlack is the margin, in bits, above the modulus' bit length that
+// the announced length of a valid Nat is allowed to have. Honest encodings of
+// a reduced value mod N carry exactly N's bit length; anything larger is
+// zero-padding, whose announced length drives the cost of the constant-time
+// operations below (CmpMod, IsUnit) and of any later modular arithmetic —
+// an attacker-controlled announced length is a CPU-amplification DoS.
+const maxAnnouncedSlack = 64
+
 // IsValidNatModN checks that ints are all in the range [1,…,N-1] and co-prime to N.
 func IsValidNatModN(N *saferith.Modulus, ints ...*saferith.Nat) bool {
 	for _, i := range ints {
 		if i == nil {
+			return false
+		}
+		// A reduced value mod N fits in N's bit length; reject padded
+		// encodings before they reach the expensive operations below.
+		if i.AnnouncedLen() > N.BitLen()+maxAnnouncedSlack {
 			return false
 		}
 		if _, _, lt := i.CmpMod(N); lt != 1 {

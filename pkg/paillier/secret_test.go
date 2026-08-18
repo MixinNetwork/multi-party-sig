@@ -34,3 +34,20 @@ func TestNewSecretKeyFromPrimesRejectsEqualPrimes(t *testing.T) {
 	}()
 	NewSecretKeyFromPrimes(p, p)
 }
+
+func TestModulusNormalizesAnnouncedLength(t *testing.T) {
+	// A zero-padded modulus encoding must not inflate the cost of the
+	// constant-time arithmetic performed with the key: saferith normalizes
+	// the announced length to the true bit length when the modulus is
+	// constructed. This test pins down that invariant.
+	nBytes := paillierPublic.N().Nat().Bytes()
+	padded := make([]byte, 4*len(nBytes))
+	copy(padded[len(padded)-len(nBytes):], nBytes)
+	paddedN := saferith.ModulusFromNat(new(saferith.Nat).SetBytes(padded))
+	if got, want := paddedN.Nat().AnnouncedLen(), paillierPublic.N().Nat().AnnouncedLen(); got != want {
+		t.Errorf("padded modulus kept announced length %d, want %d", got, want)
+	}
+	if err := ValidateN(paddedN); err != nil {
+		t.Error("ValidateN rejected a normalized modulus:", err)
+	}
+}

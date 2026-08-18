@@ -2,6 +2,7 @@ package paillier
 
 import (
 	"crypto/rand"
+	"fmt"
 	"io"
 
 	"github.com/cronokirby/saferith"
@@ -85,6 +86,14 @@ func (ct *Ciphertext) MarshalBinary() ([]byte, error) {
 }
 
 func (ct *Ciphertext) UnmarshalBinary(data []byte) error {
+	// A valid ciphertext is a unit mod N², so it never exceeds
+	// params.BytesCiphertext bytes. A longer encoding can only be padding,
+	// and the announced length a padded encoding produces drives the cost of
+	// the constant-time arithmetic the value later feeds (CPU-amplification
+	// DoS). Reject it here, at the single decode funnel.
+	if len(data) > params.BytesCiphertext {
+		return fmt.Errorf("paillier: ciphertext encoding too long: %d bytes", len(data))
+	}
 	ct.c = new(saferith.Nat)
 	return ct.c.UnmarshalBinary(data)
 }

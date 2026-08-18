@@ -32,3 +32,18 @@ func TestIsValidIntLen(t *testing.T) {
 		t.Error("IsValidIntLen accepted an oversized zero value (announced-size DoS)")
 	}
 }
+
+func TestIsValidNatModNRejectsOverAnnounced(t *testing.T) {
+	n := saferith.ModulusFromNat(new(saferith.Nat).SetUint64(0xFFFFFF01)) // ~2^32, odd
+	// an honest unit mod N is accepted
+	if !IsValidNatModN(n, new(saferith.Nat).SetUint64(42)) {
+		t.Error("IsValidNatModN rejected an honest unit")
+	}
+	// the same value zero-padded to a large announced length must be rejected:
+	// the announced length drives the cost of the constant-time checks.
+	padded := make([]byte, 4096)
+	padded[len(padded)-1] = 42
+	if IsValidNatModN(n, new(saferith.Nat).SetBytes(padded)) {
+		t.Error("IsValidNatModN accepted a zero-padded value (announced-size DoS)")
+	}
+}

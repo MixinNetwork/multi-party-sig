@@ -7,6 +7,7 @@ import (
 
 	"github.com/cronokirby/saferith"
 	"github.com/stretchr/testify/assert"
+	"github.com/MixinNetwork/multi-party-sig/common/params"
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/sample"
 	"github.com/MixinNetwork/multi-party-sig/pkg/pool"
 )
@@ -194,4 +195,42 @@ func BenchmarkMulCiphertext(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		resultCiphertext = c.Mul(paillierPublic, m)
 	}
+}
+
+func TestCiphertextUnmarshalRejectsOverlongEncoding(t *testing.T) {
+	if !testing.Short() {
+		reinit()
+	}
+	// A legitimate encoding round-trips.
+	ct, _ := paillierPublic.Enc(new(saferith.Int).SetUint64(42))
+	data, err := ct.MarshalBinary()
+	assert.NoError(t, err)
+	assert.LessOrEqual(t, len(data), params.BytesCiphertext)
+	var round Ciphertext
+	assert.NoError(t, round.UnmarshalBinary(data))
+	assert.True(t, round.Equal(ct))
+
+	// An encoding padded with leading zeros carries the same value but an
+	// announced length that drives up the cost of constant-time arithmetic
+	// (CPU-amplification DoS). It must be rejected at decode.
+	padded := make([]byte, params.BytesCiphertext+1)
+	copy(padded[1:], data)
+	assert.Error(t, round.UnmarshalBinary(padded))
+
+	// A small value in a huge encoding is equally rejected.
+	huge := make([]byte, 256*1024)
+	huge[len(huge)-1] = 1
+	assert.Error(t, round.UnmarshalBinary(huge))
+}
+
+func TestValidateCiphertextsRejectsOverAnnounced(t *testing.T) {
+	if !testing.Short() {
+		reinit()
+	}
+	// Constructed without going through UnmarshalBinary: value 1 (a unit
+	// mod N²) but an announced length far beyond N².
+	padded := make([]byte, 64*1024)
+	padded[len(padded)-1] = 1
+	ct := &Ciphertext{c: new(saferith.Nat).SetBytes(padded)}
+	assert.False(t, paillierPublic.ValidateCiphertexts(ct))
 }
