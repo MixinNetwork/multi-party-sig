@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"testing"
 
+	"github.com/cronokirby/saferith"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,6 +38,12 @@ func TestLogStar(t *testing.T) {
 		Rho: rho,
 	})
 	assert.True(t, proof.Verify(hash.New(), public))
+
+	// responses with an oversized announced length must be rejected before
+	// reaching any exponentiation (arith.MaxIntResponseBits)
+	tampered := *proof
+	tampered.Z3 = new(saferith.Int).SetBytes(make([]byte, 64*1024))
+	assert.False(t, tampered.Verify(hash.New(), public))
 
 	out, err := cbor.Marshal(proof)
 	require.NoError(t, err, "failed to marshal proof")

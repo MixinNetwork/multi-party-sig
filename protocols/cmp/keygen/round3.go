@@ -71,6 +71,13 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 	if body.N == nil || body.S == nil || body.T == nil || body.VSSPolynomial == nil || body.SchnorrCommitments == nil {
 		return round.ErrNilFields
 	}
+	// Reject the identity ElGamal key. A sparse (e.g. CBOR) decoding that omits
+	// the field leaves the pre-seeded identity point in place, and its encoding
+	// cannot be unmarshalled back: accepting it would poison the persisted
+	// config of every honest party, which would then fail to reload.
+	if body.ElGamalPublic == nil || body.ElGamalPublic.IsIdentity() {
+		return round.ErrNilFields
+	}
 	// check RID length
 	if err := body.RID.Validate(); err != nil {
 		return fmt.Errorf("rid: %w", err)

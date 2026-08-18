@@ -64,6 +64,11 @@ func (p *Proof) IsValid(public Public) bool {
 	if p.A == nil || p.Bx == nil || p.E == nil || p.S == nil || p.Z1 == nil || p.Z2 == nil || p.W == nil {
 		return false
 	}
+	// Bound the announced size of the responses before they feed any
+	// exponentiation (arith.MaxIntResponseBits).
+	if !arith.IsValidIntLen(p.Z1) || !arith.IsValidIntLen(p.Z2) {
+		return false
+	}
 	if !arith.IsValidNatModN(public.Verifier.N(), p.W) {
 		return false
 	}

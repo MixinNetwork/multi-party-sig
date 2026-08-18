@@ -70,7 +70,12 @@ func NewSecretKey(pl *pool.Pool) *SecretKey {
 }
 
 // NewSecretKeyFromPrimes generates a new SecretKey. Assumes that P and Q are prime.
+// P and Q must be distinct: N = P² would be trivially factorable, and the CRT
+// decomposition used for decryption assumes coprime factors.
 func NewSecretKeyFromPrimes(P, Q *saferith.Nat) *SecretKey {
+	if P.Eq(Q) == 1 {
+		panic("paillier: P and Q must be distinct primes")
+	}
 	oneNat := new(saferith.Nat).SetUint64(1)
 
 	n := arith.ModulusFromFactors(P, Q)

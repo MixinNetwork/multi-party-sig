@@ -45,6 +45,12 @@ func TestMulG(t *testing.T) {
 	proof := NewProof(group, hash.New(), public, private)
 	assert.True(t, proof.Verify(group, hash.New(), public))
 
+	// responses with an oversized announced length must be rejected before
+	// reaching any exponentiation (arith.MaxIntResponseBits)
+	tampered := *proof
+	tampered.Z1 = new(saferith.Int).SetBytes(make([]byte, 64*1024))
+	assert.False(t, tampered.Verify(group, hash.New(), public))
+
 	out, err := cbor.Marshal(proof)
 	require.NoError(t, err, "failed to marshal proof")
 	proof2 := Empty(group)

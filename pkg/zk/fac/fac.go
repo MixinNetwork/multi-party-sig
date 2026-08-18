@@ -64,7 +64,9 @@ func NewProof(private Private, hash *hash.Hash, public Public) *Proof {
 	comm := Commitment{P, Q, A, B, T}
 
 	// Figure 28, point 2:
-	e, _ := challenge(hash, public, comm)
+	// sigma was sampled above, as part of the prover's first message, so it
+	// is bound into the challenge.
+	e, _ := challenge(hash, public, comm, sigma)
 
 	// Figure 28, point 3:
 	// "..., and sends (z, u, v) to the verifier, where"
@@ -109,7 +111,19 @@ func (p *Proof) Verify(public Public, hash *hash.Hash) bool {
 		return false
 	}
 
-	e, err := challenge(hash, public, p.Comm)
+	// All cheap validations come first: bound the announced size of every
+	// response (arith.MaxIntResponseBits) and check the interval proofs, so
+	// that no attacker-controlled input can reach the exponentiations below.
+	if !arith.IsValidIntLen(p.Sigma) || !arith.IsValidIntLen(p.Z1) || !arith.IsValidIntLen(p.Z2) ||
+		!arith.IsValidIntLen(p.W1) || !arith.IsValidIntLen(p.W2) || !arith.IsValidIntLen(p.V) {
+		return false
+	}
+	// DEVIATION: for the bounds to work, we add an extra bit, to ensure that we don't have spurious failures.
+	if !arith.IsInIntervalLEpsPlus1RootN(p.Z1) || !arith.IsInIntervalLEpsPlus1RootN(p.Z2) {
+		return false
+	}
+
+	e, err := challenge(hash, public, p.Comm, p.Sigma)
 	if err != nil {
 		return false
 	}
@@ -136,16 +150,13 @@ func (p *Proof) Verify(public Public, hash *hash.Hash) bool {
 	lhs.ModMul(lhs, NhatArith.ExpI(public.Aux.T(), p.V), Nhat)
 	rhs := NhatArith.ExpI(R, e)
 	rhs.ModMul(rhs, p.Comm.T, Nhat)
-	if lhs.Eq(rhs) != 1 {
-		return false
-	}
-
-	// DEVIATION: for the bounds to work, we add an extra bit, to ensure that we don't have spurious failures.
-	return arith.IsInIntervalLEpsPlus1RootN(p.Z1) && arith.IsInIntervalLEpsPlus1RootN(p.Z2)
+	return lhs.Eq(rhs) == 1
 }
 
-func challenge(hash *hash.Hash, public Public, commitment Commitment) (*saferith.Int, error) {
-	err := hash.WriteAny(public.N, public.Aux, commitment.P, commitment.Q, commitment.A, commitment.B, commitment.T)
+func challenge(hash *hash.Hash, public Public, commitment Commitment, sigma *saferith.Int) (*saferith.Int, error) {
+	// sigma is part of the prover's first message, so the Fiat-Shamir
+	// challenge must bind it: the prover may not choose it after seeing e.
+	err := hash.WriteAny(public.N, public.Aux, commitment.P, commitment.Q, commitment.A, commitment.B, commitment.T, sigma)
 	if err != nil {
 		return nil, err
 	}

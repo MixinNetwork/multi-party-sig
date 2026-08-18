@@ -104,6 +104,13 @@ func (h *MultiHandler) CanAccept(msg *Message) bool {
 	if !msg.Broadcast && msg.RoundNumber > 0 && msg.To != r.SelfID() {
 		return false
 	}
+	// the symmetric check: broadcast messages must not be addressed to a
+	// specific party. A unicast "broadcast" would otherwise be stored (and
+	// folded into the broadcast verification hash) by only a subset of the
+	// participants.
+	if msg.Broadcast && msg.To != "" {
+		return false
+	}
 	// is the protocol ID correct
 	if msg.Protocol != r.ProtocolID() {
 		return false

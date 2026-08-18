@@ -95,7 +95,15 @@ func (c *Config) UnmarshalBinary(data []byte) error {
 	if err := paillier.ValidatePrime(cm.Q); err != nil {
 		return fmt.Errorf("config: prime Q: %w", err)
 	}
+	if cm.P.Eq(cm.Q) == 1 {
+		return errors.New("config: primes P and Q must be distinct")
+	}
 	paillierSecret := paillier.NewSecretKeyFromPrimes(cm.P, cm.Q)
+	// enforce the same modulus invariant as for the other parties: N must be
+	// exactly 2048 bits (two 1024-bit primes can still produce a 2047-bit N).
+	if err := paillier.ValidateN(paillierSecret.N()); err != nil {
+		return fmt.Errorf("config: Paillier modulus: %w", err)
+	}
 
 	// validate RID and ChainKey
 	if err := cm.RID.Validate(); err != nil {
@@ -152,6 +160,22 @@ func (c *Config) UnmarshalBinary(data []byte) error {
 			Paillier: paillierPublic,
 			Pedersen: pedersen.New(paillierPublic.Modulus(), p.S, p.T),
 		}
+	}
+
+	// Party IDs are used as evaluation points of the polynomial sharing of the
+	// secret key, so they must map to distinct, non-zero scalars (the same
+	// check round.NewSession performs for protocol execution). Without it,
+	// PublicPoint/DeriveBIP32 would panic on this config.
+	scalars := make(map[string]party.ID, len(ps))
+	for id := range ps {
+		s := id.Scalar(c.Group)
+		if s.IsZero() {
+			return fmt.Errorf("config: party ID %q maps to the zero scalar", id)
+		}
+		if otherID, ok := scalars[string(s.Bytes())]; ok {
+			return fmt.Errorf("config: party IDs %q and %q map to the same scalar", otherID, id)
+		}
+		scalars[string(s.Bytes())] = id
 	}
 
 	// verify number of parties w.r.t. threshold

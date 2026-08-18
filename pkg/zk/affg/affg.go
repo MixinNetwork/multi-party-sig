@@ -89,6 +89,11 @@ func (p *Proof) IsValid(public Public) bool {
 	if p.Z1 == nil || p.Z2 == nil || p.Z3 == nil || p.Z4 == nil || p.W == nil || p.Wy == nil {
 		return false
 	}
+	// Bound the announced size of the responses before they feed any
+	// exponentiation (arith.MaxIntResponseBits).
+	if !arith.IsValidIntLen(p.Z1) || !arith.IsValidIntLen(p.Z2) || !arith.IsValidIntLen(p.Z3) || !arith.IsValidIntLen(p.Z4) {
+		return false
+	}
 	if !public.Verifier.ValidateCiphertexts(p.A) {
 		return false
 	}

@@ -68,3 +68,23 @@ func IsInIntervalLEpsPlus1RootN(n *saferith.Int) bool {
 	}
 	return n.TrueLen() <= 1+params.LPlusEpsilon+(params.BitsIntModN/2)
 }
+
+// MaxIntResponseBits bounds the announced size of any *saferith.Int field
+// appearing in a zero-knowledge proof. The cost of saferith modular operations
+// scales with the announced size of their inputs, and an Int decoded from the
+// wire takes its announced size directly from the attacker's data (8 × length).
+// Legitimate proof responses are always well below this bound — the largest is
+// Πfac's v at ~4865 bits — so anything bigger is rejected before any expensive
+// exponentiation is performed.
+const MaxIntResponseBits = 5120
+
+// IsValidIntLen returns true if n is non-nil and its announced size is at most
+// MaxIntResponseBits bits. Note that checking TrueLen would NOT be sufficient:
+// a large zero-filled input has a small true length but still forces expensive
+// constant-time arithmetic.
+func IsValidIntLen(n *saferith.Int) bool {
+	if n == nil {
+		return false
+	}
+	return n.AnnouncedLen() <= MaxIntResponseBits
+}

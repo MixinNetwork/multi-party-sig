@@ -5,7 +5,10 @@ const (
 	SecBytes  = SecParam / 8
 	OTParam   = 128
 	OTBytes   = OTParam / 8
-	StatParam = 80
+	// StatParam is the number of repetitions for the Πmod and Πprm zero-knowledge
+	// proofs. The paper (CGGMP21, §3 / Fig. 12-13) recommends m = 112 for 2048-bit
+	// moduli, giving a soundness error of ~2⁻¹¹² per execution.
+	StatParam = 112
 
 	L                 = 1 * SecParam     // = 256
 	LPrime            = 5 * SecParam     // = 1280

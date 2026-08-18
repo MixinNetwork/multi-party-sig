@@ -22,3 +22,15 @@ func TestValidatePrime(t *testing.T) {
 		t.Error("ValidatePrime accepted a composite factor")
 	}
 }
+
+func TestNewSecretKeyFromPrimesRejectsEqualPrimes(t *testing.T) {
+	// N = P² is trivially factorable and the CRT path assumes coprime factors,
+	// so the constructor must refuse P == Q.
+	p := paillierSecret.P()
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("NewSecretKeyFromPrimes did not panic on P == Q")
+		}
+	}()
+	NewSecretKeyFromPrimes(p, p)
+}

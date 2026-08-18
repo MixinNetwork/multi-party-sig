@@ -129,9 +129,15 @@ func (p *Proof) Verify(public Public, hash *hash.Hash, pl *pool.Pool) bool {
 }
 
 func challenge(hash *hash.Hash, public Public, A [params.StatParam]*big.Int) (es []bool, err error) {
-	err = hash.WriteAny(public.Aux)
+	if err = hash.WriteAny(public.Aux); err != nil {
+		return nil, err
+	}
 	for _, a := range A {
-		_ = hash.WriteAny(a)
+		// A nil or otherwise unwritable element must fail loudly: silently
+		// skipping it would corrupt the transcript.
+		if err = hash.WriteAny(a); err != nil {
+			return nil, err
+		}
 	}
 
 	tmpBytes := make([]byte, params.StatParam)

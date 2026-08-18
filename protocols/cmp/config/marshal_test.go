@@ -132,6 +132,33 @@ func TestConfigUnmarshalRejectsTampering(t *testing.T) {
 			// 2q+1 with q prime: 1024-bit, ≡ 3 (mod 4), (P-1)/2 prime, but composite (divisible by 3)
 			cm.P, _ = new(saferith.Nat).SetHex("C4AE6F2915E500544D5870E7537398FAA2FBA30F66B8A68AD5F7C851287A6AA2A744E7A43ADF7222B1164467E03789DEF66B9466049AF0BD125571AA61568A53DFB02FAF11459E5E618E5D6E2D56741007678FB0FB5C932A455E66B47860FA3197A34616C74451DC7F1C56FF4A1311E25EF536F656FBEF89052FCF56D1440D1B")
 		},
+		"P equal to Q": func(cm *configMarshal, _ []*publicMarshal) {
+			// N = P² is trivially factorable
+			cm.Q = cm.P
+		},
+		"own N is 2047 bits": func(cm *configMarshal, _ []*publicMarshal) {
+			// Two distinct, valid 1024-bit safe Blum primes whose product is
+			// only 2047 bits: the modulus invariant must also be enforced for
+			// our own key, like it is for the other parties.
+			cm.P, _ = new(saferith.Nat).SetHex("9b89ebdb03b220b53081c29bbdce2b26647d3e7574b2f12d2f4cc5de409595a2a7fdfa838d3d9189b12ca5c9f2423b8eb2628bd6c4ab6c247178d1c02471ae047b4207839191e59213b470e7f7475a825aa46a2acf1f4e1a28302a45e328c2c10a8c3edb6017ae73d6250eddfdd0b5df38faf7efa4454aeb769beb63c28f13e3")
+			cm.Q, _ = new(saferith.Nat).SetHex("9b89ebdb03b220b53081c29bbdce2b26647d3e7574b2f12d2f4cc5de409595a2a7fdfa838d3d9189b12ca5c9f2423b8eb2628bd6c4ab6c247178d1c02471ae047b4207839191e59213b470e7f7475a825aa46a2acf1f4e1a28302a45e328c2c10a8c3edb6017ae73d6250eddfdd0b5df38faf7efa4454aeb769beb63c291af63")
+		},
+		"colliding scalar party IDs": func(cm *configMarshal, pms []*publicMarshal) {
+			// "a" and "\x00a" both map to the scalar 0x61: the duplicate-string
+			// check passes, but Lagrange interpolation over them would panic.
+			for _, pm := range pms {
+				if pm.ID != cm.ID {
+					pm.ID = "\x00a"
+				}
+			}
+		},
+		"zero scalar party ID": func(cm *configMarshal, pms []*publicMarshal) {
+			for _, pm := range pms {
+				if pm.ID != cm.ID {
+					pm.ID = "\x00"
+				}
+			}
+		},
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {

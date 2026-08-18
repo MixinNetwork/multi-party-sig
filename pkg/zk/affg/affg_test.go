@@ -52,6 +52,21 @@ func TestAffG(t *testing.T) {
 	proof := NewProof(group, hash.New(), public, private)
 	assert.True(t, proof.Verify(hash.New(), public))
 
+	// responses with an announced size far beyond any legitimate value must be
+	// rejected before reaching any exponentiation (arith.MaxIntResponseBits),
+	// even when the value itself is small
+	for name, mutate := range map[string]func(p *Proof){
+		"Z1": func(p *Proof) { p.Z1 = new(saferith.Int).SetBytes(make([]byte, 64*1024)) },
+		"Z3": func(p *Proof) { p.Z3 = new(saferith.Int).SetBytes(make([]byte, 64*1024)) },
+		"Z4": func(p *Proof) { p.Z4 = new(saferith.Int).SetBytes(make([]byte, 64*1024)) },
+	} {
+		t.Run("oversized "+name, func(t *testing.T) {
+			tampered := *proof
+			mutate(&tampered)
+			assert.False(t, tampered.Verify(hash.New(), public))
+		})
+	}
+
 	out, err := cbor.Marshal(proof)
 	require.NoError(t, err, "failed to marshal proof")
 	proof2 := Empty(group)

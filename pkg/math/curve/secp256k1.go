@@ -211,6 +211,12 @@ func (p *Secp256k1Point) UnmarshalBinary(data []byte) error {
 	if len(data) != 33 {
 		return fmt.Errorf("invalid length for secp256k1Point: %d", len(data))
 	}
+	// Only the canonical compressed prefixes are accepted: 2 for even Y,
+	// 3 for odd Y. Any other byte would be silently treated as even Y,
+	// giving a point many different serializations.
+	if data[0] != 2 && data[0] != 3 {
+		return fmt.Errorf("secp256k1Point.UnmarshalBinary: invalid prefix byte: %d", data[0])
+	}
 	p.value.Z.SetInt(1)
 	if p.value.X.SetByteSlice(data[1:]) {
 		return fmt.Errorf("secp256k1Point.UnmarshalBinary: x coordinate out of range")
