@@ -234,6 +234,16 @@ func (c *Config) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("public key error %v", err)
 	}
+	// The group public key must be a prime-order subgroup point: an identity
+	// key would make signatures trivially forgeable, and a torsion-carrying
+	// key (e.g. produced by a poisoned keygen before the small-subgroup
+	// checks existed) would silently break cofactorless verification.
+	if c.PublicKey.IsIdentity() {
+		return fmt.Errorf("public key is the identity point")
+	}
+	if !c.PublicKey.IsInPrimeOrderGroup() {
+		return fmt.Errorf("public key is not in the prime-order subgroup")
+	}
 
 	ck, err := dec.ReadBytes()
 	if err != nil {
@@ -248,6 +258,16 @@ func (c *Config) UnmarshalBinary(data []byte) error {
 	err = c.VerificationShares.UnmarshalBinary(pm)
 	if err != nil {
 		return fmt.Errorf("point map error %v", err)
+	}
+	// Same validation for every verification share: a torsion component here
+	// defeats the identifiable-abort property of the signing protocol.
+	for id, point := range c.VerificationShares.Points {
+		if point.IsIdentity() {
+			return fmt.Errorf("verification share for %q is the identity point", id)
+		}
+		if !point.IsInPrimeOrderGroup() {
+			return fmt.Errorf("verification share for %q is not in the prime-order subgroup", id)
+		}
 	}
 
 	check, err := c.MarshalBinary()

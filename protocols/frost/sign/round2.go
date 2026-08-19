@@ -103,10 +103,13 @@ func (r *round2) Finalize(out chan<- *round.Message) (round.Session, error) {
 	// We also use a hash of the message, instead of the message directly.
 
 	rho := make(map[party.ID]curve.Scalar)
-	// This calculates H(m, B), allowing us to avoid re-hashing this data for
-	// each extra party l.
+	// This calculates H(Y, m, B), allowing us to avoid re-hashing this data
+	// for each extra party l. The group public key Y is included like in
+	// RFC 9591, Section 4.4: it matches the security proofs (StrongerSec22)
+	// and binds the signing session to this specific group key, which matters
+	// when related keys are used (e.g. via Config.Derive/DeriveChild).
 	rhoPreHash := hash.New()
-	_ = rhoPreHash.WriteAny(r.M)
+	_ = rhoPreHash.WriteAny(r.Y, r.M)
 	for _, l := range r.PartyIDs() {
 		_ = rhoPreHash.WriteAny(r.D[l], r.E[l])
 	}
