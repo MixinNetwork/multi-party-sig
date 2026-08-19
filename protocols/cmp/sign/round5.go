@@ -45,7 +45,7 @@ func (r *round5) StoreBroadcastMessage(msg round.Message) error {
 		return round.ErrInvalidContent
 	}
 
-	if body.SigmaShare.IsZero() {
+	if body.SigmaShare == nil || body.SigmaShare.IsZero() {
 		return round.ErrNilFields
 	}
 

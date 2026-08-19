@@ -46,6 +46,9 @@ func (r *round4) StoreBroadcastMessage(msg round.Message) error {
 	if !ok || body == nil {
 		return round.ErrInvalidContent
 	}
+	if body.DeltaShare == nil || body.BigDeltaShare == nil {
+		return round.ErrNilFields
+	}
 	if body.DeltaShare.IsZero() || body.BigDeltaShare.IsIdentity() {
 		return round.ErrNilFields
 	}

@@ -74,7 +74,7 @@ func (partyIDs IDSlice) search(x ID) (int, bool) {
 }
 
 // WriteTo implements io.WriterTo and should be used within the hash.Hash function.
-// It writes the full uncompressed point to w, ie 64 bytes.
+// It writes the number of IDs followed by the IDs themselves.
 func (partyIDs IDSlice) WriteTo(w io.Writer) (int64, error) {
 	if partyIDs == nil {
 		return 0, io.ErrUnexpectedEOF
@@ -88,7 +88,7 @@ func (partyIDs IDSlice) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	nAll := int64(4)
+	nAll := int64(8)
 	for _, id := range partyIDs {
 		n, err = w.Write([]byte(id))
 		nAll += int64(n)

@@ -106,7 +106,8 @@ func (sig *Signature) SerializeEthereum() []byte {
 	var ss secp256k1.ModNScalar
 	ss.SetByteSlice(sb)
 	if ss.IsOverHalfOrder() {
-		sb, err = sig.S.Negate().MarshalBinary()
+		negated := sig.S.Curve().NewScalar().Set(sig.S).Negate()
+		sb, err = negated.MarshalBinary()
 		if err != nil {
 			panic(err)
 		}
