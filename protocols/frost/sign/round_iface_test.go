@@ -1,6 +1,7 @@
 package sign
 
 import (
+	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -100,6 +101,53 @@ func TestRound2StoreBroadcastErrors(t *testing.T) {
 		Content: &broadcast2{D_i: group.NewBasePoint(), E_i: group.NewPoint()},
 	})
 	assert.Error(t, err)
+
+	// nil commitments must be rejected cleanly (no panic)
+	err = r2.(*round2).StoreBroadcastMessage(round.Message{
+		From:    partyIDs[1],
+		Content: &broadcast2{},
+	})
+	assert.ErrorIs(t, err, round.ErrNilFields)
+}
+
+func TestRound2StoreBroadcastRejectsSmallSubgroup(t *testing.T) {
+	edwards := curve.Edwards25519{}
+	_, r2 := signRounds(t, ProtocolEd25519SHA512)
+	partyIDs := test.PartyIDs(3)
+
+	// a torsion (order-8) nonce commitment must be rejected on edwards25519
+	torsionBytes, err := hex.DecodeString("26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05")
+	require.NoError(t, err)
+	T8 := edwards.NewPoint()
+	require.NoError(t, T8.UnmarshalBinary(torsionBytes))
+
+	err = r2.(*round2).StoreBroadcastMessage(round.Message{
+		From:    partyIDs[1],
+		Content: &broadcast2{D_i: T8, E_i: edwards.NewBasePoint()},
+	})
+	assert.ErrorContains(t, err, "prime-order subgroup")
+
+	err = r2.(*round2).StoreBroadcastMessage(round.Message{
+		From:    partyIDs[1],
+		Content: &broadcast2{D_i: edwards.NewBasePoint(), E_i: T8},
+	})
+	assert.ErrorContains(t, err, "prime-order subgroup")
+
+	// a prime-order commitment polluted with torsion is rejected as well
+	polluted := edwards.NewBasePoint().Add(T8)
+	err = r2.(*round2).StoreBroadcastMessage(round.Message{
+		From:    partyIDs[1],
+		Content: &broadcast2{D_i: polluted, E_i: edwards.NewBasePoint()},
+	})
+	assert.ErrorContains(t, err, "prime-order subgroup")
+
+	// honest commitments still pass
+	honestD := sample.Scalar(tR, edwards).ActOnBase()
+	err = r2.(*round2).StoreBroadcastMessage(round.Message{
+		From:    partyIDs[1],
+		Content: &broadcast2{D_i: honestD, E_i: edwards.NewBasePoint()},
+	})
+	assert.NoError(t, err)
 }
 
 func TestRound3InterfaceMethods(t *testing.T) {

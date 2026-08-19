@@ -64,6 +64,15 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 		return fmt.Errorf("vss polynomial has incorrect degree: got %d, expected %d", body.Phi_i.Degree(), r.threshold)
 	}
 
+	// Every coefficient must lie in the prime-order subgroup: on curves with
+	// a cofactor > 1, a malicious participant can otherwise embed
+	// small-subgroup components into Φᵢ which survive the VSS check and the
+	// Schnorr proof below, polluting the verification shares and the group
+	// public key (RFC 9591, Section 6.1).
+	if !body.Phi_i.IsInPrimeOrderGroup() {
+		return fmt.Errorf("vss polynomial contains points outside of the prime-order subgroup")
+	}
+
 	if err := body.Commitment.Validate(); err != nil {
 		return fmt.Errorf("commitment: %w", err)
 	}

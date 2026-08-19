@@ -65,8 +65,17 @@ func (r *round2) StoreBroadcastMessage(msg round.Message) error {
 	//
 	// We also receive each Dₗ, Eₗ from the participant l directly, instead of
 	// an entire bundle from a signing authority.
+	if body.D_i == nil || body.E_i == nil {
+		return round.ErrNilFields
+	}
 	if body.D_i.IsIdentity() || body.E_i.IsIdentity() {
 		return fmt.Errorf("nonce commitment is the identity point")
+	}
+	// The commitments must lie in the prime-order subgroup: on curves with a
+	// cofactor > 1, torsion components would flow into the group commitment R
+	// undetected (RFC 9591, Section 6.1).
+	if !body.D_i.IsInPrimeOrderGroup() || !body.E_i.IsInPrimeOrderGroup() {
+		return fmt.Errorf("nonce commitment is not in the prime-order subgroup")
 	}
 
 	r.D[msg.From] = body.D_i

@@ -2,11 +2,13 @@ package polynomial
 
 import (
 	"bytes"
+	"encoding/hex"
 	"testing"
 
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	"github.com/cronokirby/saferith"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -141,4 +143,58 @@ func TestExponent_UnmarshalErrors(t *testing.T) {
 	e = EmptyExponent(group)
 	huge := []byte{0xff, 0xff, 0xff, 0xff}
 	assert.Error(t, e.UnmarshalBinary(huge))
+}
+
+func TestExponent_IsInPrimeOrderGroup(t *testing.T) {
+	// honest polynomials on both curves pass
+	for _, group := range polyGroups {
+		secret := group.NewScalar().SetNat(new(saferith.Nat).SetUint64(42))
+		exp := NewPolynomialExponent(NewPolynomial(group, 2, secret))
+		assert.True(t, exp.IsInPrimeOrderGroup(), group.Name())
+
+		// a constant (zero secret) polynomial passes as well
+		zeroConst := NewPolynomialExponent(NewPolynomial(group, 2, group.NewScalar()))
+		assert.True(t, zeroConst.IsInPrimeOrderGroup(), group.Name())
+
+		// an empty exponent trivially passes
+		assert.True(t, EmptyExponent(group).IsInPrimeOrderGroup(), group.Name())
+	}
+
+	// on edwards25519, coefficients carrying an order-8 component are rejected
+	group := curve.Edwards25519{}
+	torsionBytes, err := hex.DecodeString("26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05")
+	require.NoError(t, err)
+	T8 := group.NewPoint()
+	require.NoError(t, T8.UnmarshalBinary(torsionBytes))
+	assert.False(t, T8.IsInPrimeOrderGroup())
+
+	secret := group.NewScalar().SetNat(new(saferith.Nat).SetUint64(42))
+	honest := NewPolynomialExponent(NewPolynomial(group, 2, secret))
+	// build through the wire format, as an attacker would
+	coeffBytes := make([][]byte, 0, len(honest.coefficients))
+	for _, c := range honest.coefficients {
+		polluted := c.Add(T8)
+		b, err := polluted.MarshalBinary()
+		require.NoError(t, err)
+		coeffBytes = append(coeffBytes, b)
+	}
+	payload, err := cbor.Marshal(struct {
+		IsConstant   bool
+		Coefficients [][]byte
+	}{false, coeffBytes})
+	require.NoError(t, err)
+	wire := make([]byte, 4+len(payload))
+	wire[3] = byte(len(coeffBytes))
+	copy(wire[4:], payload)
+
+	exp := EmptyExponent(group)
+	require.NoError(t, exp.UnmarshalBinary(wire))
+	assert.False(t, exp.IsInPrimeOrderGroup(), "torsion-carrying coefficients must be rejected")
+
+	// a single polluted coefficient is enough
+	honestCoeffs := honest.coefficients
+	mixed := make([]curve.Point, len(honestCoeffs))
+	copy(mixed, honestCoeffs)
+	mixed[1] = mixed[1].Add(T8)
+	assert.False(t, (&Exponent{group: group, coefficients: mixed}).IsInPrimeOrderGroup())
 }

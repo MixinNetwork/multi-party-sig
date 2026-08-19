@@ -266,6 +266,14 @@ func (p *Secp256k1Point) IsIdentity() bool {
 	return p == nil || (p.value.X.IsZero() && p.value.Y.IsZero()) || p.value.Z.IsZero()
 }
 
+// IsInPrimeOrderGroup implements curve.Point.
+//
+// secp256k1 has cofactor 1, so every point on the curve generates the full
+// prime-order group, and this check trivially succeeds.
+func (*Secp256k1Point) IsInPrimeOrderGroup() bool {
+	return true
+}
+
 func (p *Secp256k1Point) HasEvenY() bool {
 	p.value.ToAffine()
 	return !p.value.Y.IsOdd()

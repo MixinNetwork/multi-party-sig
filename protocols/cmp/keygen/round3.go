@@ -102,6 +102,18 @@ func (r *round3) StoreBroadcastMessage(msg round.Message) error {
 		return errors.New("vss polynomial has incorrect degree")
 	}
 
+	// All received points must lie in the prime-order subgroup: on curves
+	// with a cofactor > 1, a malicious participant can otherwise embed
+	// small-subgroup components into Fⱼ or its ElGamal key, which survive
+	// the commitment and Schnorr checks below and pollute the derived key
+	// material (RFC 9591, Section 6.1).
+	if !VSSPolynomial.IsInPrimeOrderGroup() {
+		return errors.New("vss polynomial contains points outside of the prime-order subgroup")
+	}
+	if !body.ElGamalPublic.IsInPrimeOrderGroup() {
+		return errors.New("elgamal public key is not in the prime-order subgroup")
+	}
+
 	// Set Paillier
 	if err := paillier.ValidateN(body.N); err != nil {
 		return err

@@ -95,6 +95,23 @@ func (p *Exponent) Degree() int {
 	return len(p.coefficients) - 1
 }
 
+// IsInPrimeOrderGroup reports whether all coefficients of this polynomial lie
+// in the prime-order subgroup of the group.
+//
+// VSS commitments received from other parties must pass this check on curves
+// with a cofactor greater than 1: otherwise a malicious participant can embed
+// small-subgroup components into the coefficients, which survive every
+// protocol check and pollute the derived verification shares and public key
+// (see RFC 9591, Section 6.1).
+func (p *Exponent) IsInPrimeOrderGroup() bool {
+	for _, c := range p.coefficients {
+		if !c.IsInPrimeOrderGroup() {
+			return false
+		}
+	}
+	return true
+}
+
 func (p *Exponent) add(q *Exponent) error {
 	if len(p.coefficients) != len(q.coefficients) {
 		return errors.New("q is not the same length as p")
