@@ -112,8 +112,13 @@ func (pk PublicKey) EncWithNonce(m *saferith.Int, nonce *saferith.Nat) *Cipherte
 }
 
 // Equal returns true if pk ≡ other.
+//
+// The comparison uses private copies: saferith's comparisons mutate their
+// operands in place, and keys shared between concurrent protocol sessions
+// must stay read-only.
 func (pk PublicKey) Equal(other *PublicKey) bool {
-	_, eq, _ := pk.n.Cmp(other.n.Modulus)
+	thisN, otherN := pk.n.Modulus.Nat(), other.n.Modulus.Nat()
+	_, eq, _ := thisN.Cmp(otherN)
 	return eq == 1
 }
 
@@ -131,8 +136,9 @@ func (pk PublicKey) ValidateCiphertexts(cts ...*Ciphertext) bool {
 		if ct.c.AnnouncedLen() > 2*params.BitsPaillier+64 {
 			return false
 		}
-		_, _, lt := ct.c.CmpMod(pk.nSquared.Modulus)
-		if lt != 1 {
+		// IsBelowModN, unlike ct.c.CmpMod, does not mutate the shared modulus
+		// cached in this key.
+		if !arith.IsBelowModN(ct.c, pk.nSquared.Modulus) {
 			return false
 		}
 		if ct.c.IsUnit(pk.nSquared.Modulus) != 1 {

@@ -3,6 +3,7 @@ package sample
 import (
 	"crypto/rand"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/cronokirby/saferith"
@@ -74,4 +75,50 @@ func BenchmarkModN(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		resultNat = ModN(rand.Reader, n)
 	}
+}
+
+// ModN and UnitModN must be safe to call concurrently against a shared
+// modulus: the defensive ModulusFromNat(n.Nat()) copy inside them is what
+// keeps concurrent protocol sessions — which share the Config's moduli —
+// race-free (saferith's comparisons mutate their operands in place). The
+// range checks below compare against private copies for the same reason.
+// Run under -race.
+func TestModNConcurrentSharedModulus(t *testing.T) {
+	n := saferith.ModulusFromUint64(3 * 11 * 65519)
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				x := ModN(rand.Reader, n)
+				if _, _, lt := x.CmpMod(saferith.ModulusFromNat(n.Nat())); lt != 1 {
+					t.Error("ModN generated a number >= n")
+				}
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func TestUnitModNConcurrentSharedModulus(t *testing.T) {
+	n := saferith.ModulusFromUint64(3 * 11 * 65537 * 65599)
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				u := UnitModN(rand.Reader, n)
+				private := saferith.ModulusFromNat(n.Nat())
+				if _, _, lt := u.CmpMod(private); lt != 1 {
+					t.Error("UnitModN generated a number >= n")
+				}
+				if u.IsUnit(private) != 1 {
+					t.Error("UnitModN generated a non-unit")
+				}
+			}
+		}()
+	}
+	wg.Wait()
 }

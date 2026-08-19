@@ -2,6 +2,7 @@ package pedersen
 
 import (
 	"crypto/rand"
+	"sync"
 	"math/big"
 	"testing"
 
@@ -104,4 +105,33 @@ func BenchmarkPedersenVerify(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		resultBool = benchParams.Verify(x, y, e, S, T)
 	}
+}
+
+// ValidateParameters must not mutate the parameters it checks: saferith's
+// comparisons mutate their operands in place, and these values are shared
+// between concurrent protocol sessions (e.g. via a Config), where such
+// mutation is a data race. Run under -race.
+func TestValidateParametersConcurrent(t *testing.T) {
+	// 2²⁵⁶ − 189 is prime and ≡ 3 mod 4; 4 and 9 are non-trivial quadratic
+	// residues modulo it.
+	n, _ := new(saferith.Nat).SetHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF43")
+	N := saferith.ModulusFromNat(n)
+	sharedS := new(saferith.Nat).SetUint64(4)
+	sharedT := new(saferith.Nat).SetUint64(9)
+
+	if err := ValidateParameters(N, sharedS, sharedT); err != nil {
+		t.Fatalf("test setup: parameters rejected: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := ValidateParameters(N, sharedS, sharedT); err != nil {
+				t.Errorf("ValidateParameters rejected shared values: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
 }

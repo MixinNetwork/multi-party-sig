@@ -38,7 +38,12 @@ func Rounds(rounds []round.Session, rule Rule) (error, bool) {
 		idx := id
 		r := rounds[idx]
 		errGroup.Go(func() error {
-			var rNew, rNewReal round.Session
+			// err is local to this goroutine: sharing the outer variable
+			// races with both the sibling parties and the loop below.
+			var (
+				rNew, rNewReal round.Session
+				err            error
+			)
 			if rule != nil {
 				rReal := getRound(r)
 				rule.ModifyBefore(rReal)
@@ -92,38 +97,38 @@ func Rounds(rounds []round.Session, rule Rule) (error, bool) {
 			if msg.From == r.SelfID() || msg.Content.RoundNumber() != r.Number() {
 				continue
 			}
-			errGroup.Go(func() error {
-				if m.Broadcast {
-					b, ok := r.(round.BroadcastRound)
-					if !ok {
-						return errors.New("broadcast message but not broadcast round")
-					}
-					m.Content = b.BroadcastContent()
-					if err = cbor.Unmarshal(msgBytes, m.Content); err != nil {
-						return err
-					}
-
-					if err = b.StoreBroadcastMessage(m); err != nil {
-						return err
-					}
-				} else {
-					m.Content = r.MessageContent()
-					if err = cbor.Unmarshal(msgBytes, m.Content); err != nil {
-						return err
-					}
-
-					if m.To == "" || m.To == r.SelfID() {
-						if err = r.VerifyMessage(m); err != nil {
-							return err
-						}
-						if err = r.StoreMessage(m); err != nil {
-							return err
-						}
-					}
+		errGroup.Go(func() error {
+			if m.Broadcast {
+				b, ok := r.(round.BroadcastRound)
+				if !ok {
+					return errors.New("broadcast message but not broadcast round")
+				}
+				m.Content = b.BroadcastContent()
+				if err := cbor.Unmarshal(msgBytes, m.Content); err != nil {
+					return err
 				}
 
-				return nil
-			})
+				if err := b.StoreBroadcastMessage(m); err != nil {
+					return err
+				}
+			} else {
+				m.Content = r.MessageContent()
+				if err := cbor.Unmarshal(msgBytes, m.Content); err != nil {
+					return err
+				}
+
+				if m.To == "" || m.To == r.SelfID() {
+					if err := r.VerifyMessage(m); err != nil {
+						return err
+					}
+					if err := r.StoreMessage(m); err != nil {
+						return err
+					}
+				}
+			}
+
+			return nil
+		})
 		}
 		if err = errGroup.Wait(); err != nil {
 			return err, false

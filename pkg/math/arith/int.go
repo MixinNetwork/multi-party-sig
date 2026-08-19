@@ -16,6 +16,8 @@ import (
 const maxAnnouncedSlack = 64
 
 // IsValidNatModN checks that ints are all in the range [1,…,N-1] and co-prime to N.
+//
+// Neither N nor the values are mutated.
 func IsValidNatModN(N *saferith.Modulus, ints ...*saferith.Nat) bool {
 	for _, i := range ints {
 		if i == nil {
@@ -26,7 +28,7 @@ func IsValidNatModN(N *saferith.Modulus, ints ...*saferith.Nat) bool {
 		if i.AnnouncedLen() > N.BitLen()+maxAnnouncedSlack {
 			return false
 		}
-		if _, _, lt := i.CmpMod(N); lt != 1 {
+		if !IsBelowModN(i, N) {
 			return false
 		}
 		if i.IsUnit(N) != 1 {
@@ -34,6 +36,21 @@ func IsValidNatModN(N *saferith.Modulus, ints ...*saferith.Nat) bool {
 		}
 	}
 	return true
+}
+
+// IsBelowModN returns true if the value of i is strictly less than N.
+//
+// It is a side-effect-free replacement for i.CmpMod(N): saferith's
+// comparisons resize and mask the limb slices of both operands in place, so
+// concurrent comparisons against a shared *saferith.Modulus — for example the
+// ones cached inside a paillier.PublicKey or pedersen.Parameters held by
+// concurrent protocol sessions — are a data race, even though the mutation
+// preserves the value. This function compares private copies instead.
+func IsBelowModN(i *saferith.Nat, N *saferith.Modulus) bool {
+	in := new(saferith.Nat).SetNat(i)
+	mod := N.Nat()
+	_, _, lt := in.Cmp(mod)
+	return lt == 1
 }
 
 // IsValidBigModN checks that ints are all in the range [1,…,N-1] and co-prime to N.

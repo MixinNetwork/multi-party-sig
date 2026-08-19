@@ -76,7 +76,10 @@ func ValidateParameters(n *saferith.Modulus, s, t *saferith.Nat) error {
 		return ErrNotQR
 	}
 	// s ≡ t
-	if _, eq, _ := s.Cmp(t); eq == 1 {
+	// Compare private copies: saferith's comparison mutates its operands in
+	// place, and these parameters are shared between concurrent protocol
+	// sessions.
+	if _, eq, _ := s.Clone().Cmp(t.Clone()); eq == 1 {
 		return ErrSEqualT
 	}
 	return nil

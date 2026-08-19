@@ -1,6 +1,7 @@
 package arith
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/cronokirby/saferith"
@@ -46,4 +47,27 @@ func TestIsValidNatModNRejectsOverAnnounced(t *testing.T) {
 	if IsValidNatModN(n, new(saferith.Nat).SetBytes(padded)) {
 		t.Error("IsValidNatModN accepted a zero-padded value (announced-size DoS)")
 	}
+}
+
+// IsValidNatModN must not mutate the modulus or the values it checks:
+// saferith's Cmp mutates both operands in place, and these inputs are shared
+// between concurrent protocol sessions (e.g. via a Config), where such
+// mutation is a data race. Run under -race.
+func TestIsValidNatModNConcurrent(t *testing.T) {
+	// 2²⁵⁶ − 189, a prime, so every non-zero value below it is a unit.
+	n, _ := new(saferith.Nat).SetHex("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF43")
+	N := saferith.ModulusFromNat(n)
+	shared := new(saferith.Nat).SetUint64(42)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if !IsValidNatModN(N, shared) {
+				t.Error("IsValidNatModN rejected a valid shared value")
+			}
+		}()
+	}
+	wg.Wait()
 }
