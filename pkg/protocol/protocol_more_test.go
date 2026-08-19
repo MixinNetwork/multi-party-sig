@@ -120,6 +120,12 @@ func TestMultiHandler_CanAccept(t *testing.T) {
 	assert.False(t, hB.CanAccept(&wrong))
 }
 
+// A round-0 abort notification must not cause the receiving party to blame
+// its sender as a culprit: the sender may be an honest party forwarding a
+// failure it detected elsewhere, and a malicious party could otherwise frame
+// honest parties by forwarding aborts. Culprits may only come from locally
+// verified evidence. The sender is still named in the error message, since
+// having received the abort from them is a verifiable fact.
 func TestMultiHandler_AcceptAbortFromOtherParty(t *testing.T) {
 	hs := newTwoParties(t)
 	msgs := drain(hs.a)
@@ -140,7 +146,12 @@ func TestMultiHandler_AcceptAbortFromOtherParty(t *testing.T) {
 	_, err := hs.b.Result()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "aborted by other party")
+	assert.Contains(t, err.Error(), `"a"`)
 	assert.Contains(t, err.Error(), "I abort")
+
+	var perr protocol.Error
+	require.ErrorAs(t, err, &perr)
+	assert.Empty(t, perr.Culprits, "a forwarded abort must not blame the forwarding party")
 }
 
 func TestMultiHandler_Stop(t *testing.T) {

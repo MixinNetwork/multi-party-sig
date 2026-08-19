@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -44,13 +45,14 @@ func TestPool_SearchWithNilResults(t *testing.T) {
 	p := NewPool(2)
 	defer p.TearDown()
 
-	attempts := 0
+	// f runs concurrently on all workers, so the counter must be atomic
+	var attempts atomic.Int64
 	results := p.Search(3, func() any {
-		attempts++
-		if attempts%2 == 0 {
+		n := attempts.Add(1)
+		if n%2 == 0 {
 			return nil
 		}
-		return attempts
+		return int(n)
 	})
 	require.Len(t, results, 3)
 	for _, r := range results {

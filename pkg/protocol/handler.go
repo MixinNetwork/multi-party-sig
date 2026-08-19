@@ -156,7 +156,15 @@ func (h *MultiHandler) Accept(msg *Message) {
 
 	// a msg with roundNumber 0 is considered an abort from another party
 	if msg.RoundNumber == 0 {
-		h.abort(fmt.Errorf("aborted by other party with error: \"%s\"", msg.Data), msg.From)
+		// Do not treat the abort's sender as a culprit: they may be an
+		// honest party that detected misbehavior we haven't processed yet,
+		// and a malicious party could otherwise frame anyone by forwarding
+		// aborts. Culprits are only assigned from locally verified evidence;
+		// a forwarded abort carries no verifiable information about who
+		// failed, so the culprit list stays empty. The sender is still named
+		// in the message: having received the abort from them is a locally
+		// verifiable fact, and it is not an accusation.
+		h.abort(fmt.Errorf("aborted by other party %q with error: %q", msg.From, msg.Data))
 		return
 	}
 
