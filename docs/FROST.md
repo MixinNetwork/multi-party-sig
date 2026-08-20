@@ -79,9 +79,9 @@ Each signer generates two nonces $d_i$ and $e_i$ with a hedged construction:
 
 $$
 \begin{aligned}
-h_i &\leftarrow \operatorname{BLAKE3\text{-}KDF}(s_i), \\
+h_i &\leftarrow \mathrm{BLAKE3\text{-}KDF}(s_i), \\
 a_i &\xleftarrow{R} \{0,1\}^{256}, \\
-(d_i,e_i) &\leftarrow \operatorname{HashToScalar}(\operatorname{BLAKE3}_{h_i}(\mathsf{SSID} \mathbin\| m \mathbin\| a_i)).
+(d_i,e_i) &\leftarrow \mathrm{HashToScalar}(\mathrm{BLAKE3}_{h_i}(\mathsf{SSID} \mathbin\| m \mathbin\| a_i)).
 \end{aligned}
 $$
 
@@ -154,7 +154,7 @@ with the library's domain-separated hash and returns a `*frost.Signature`. Use `
 `sign.ProtocolEd25519SHA512` requires Edwards25519 and computes
 
 $$
-c = \operatorname{reduce}(\operatorname{SHA\text{-}512}(\operatorname{enc}(R) \mathbin\| \operatorname{enc}(Y) \mathbin\| m)).
+c = \mathrm{reduce}(\mathrm{SHA\text{-}512}(\mathrm{enc}(R) \mathbin\| \mathrm{enc}(Y) \mathbin\| m)).
 $$
 
 The serialized result is 64 bytes and verifies with `crypto/ed25519` or `Signature.VerifyEd25519`.
@@ -166,7 +166,7 @@ The serialized result is 64 bytes and verifies with `crypto/ed25519` or `Signatu
 During signing, the effective group commitment is similarly normalized to even y. The challenge is
 
 $$
-c = \operatorname{taggedHash}(\texttt{BIP0340/challenge}, x(R) \mathbin\| x(Y) \mathbin\| m),
+c = \mathrm{taggedHash}(\texttt{BIP0340/challenge}, x(R) \mathbin\| x(Y) \mathbin\| m),
 $$
 
 and `frost.SignTaproot` returns a 64-byte `taproot.Signature` containing $x(R) \mathbin\| z$.

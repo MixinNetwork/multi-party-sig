@@ -124,9 +124,9 @@ The implementation uses five concrete rounds.
 Each signer samples $k_i$ and $\gamma_i$, computes $\Gamma_i = \gamma_iG$, and encrypts both scalars under its Paillier key:
 
 $$
-K_i = \operatorname{Enc}_i(k_i),
+K_i = \mathrm{Enc}_i(k_i),
 \qquad
-G_i = \operatorname{Enc}_i(\gamma_i).
+G_i = \mathrm{Enc}_i(\gamma_i).
 $$
 
 It broadcasts $(K_i, G_i)$ and sends each peer a proof that $K_i$ encrypts a value known to the sender.
