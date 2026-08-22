@@ -7,15 +7,15 @@ author:
 date: 20-08-2026
 ---
 
-This document describes the threshold ECDSA implementation in this repository. It follows the CGGMP protocol by [Canetti et al.](https://eprint.iacr.org/2021/060), with a threshold distributed key-generation protocol, a coordinatorless network model, and an echo-broadcast consistency check. A local copy of the paper (2024-10-21 revision) is kept at [CGGMP21.pdf](CGGMP21.pdf).
+This document describes the threshold ECDSA implementation in this repository. It follows the final 2021 revision of the CGGMP protocol by [Canetti et al.](https://eprint.iacr.org/archive/2021/060/1634824619.pdf), with a threshold distributed key-generation protocol, a coordinatorless network model, and an echo-broadcast consistency check. A local copy of that 2021-10-21 revision is kept at [CGGMP21.pdf](CGGMP21.pdf). The 2024 protocol rewrite is not the implementation target, although selected verifier hardenings have been backported.
 
-The public entry points are [`cmp.Keygen`](../protocols/cmp/cmp.go) and [`cmp.Sign`](../protocols/cmp/cmp.go). Both operate on secp256k1 and return a `protocol.StartFunc` for use with `protocol.NewMultiHandler`.
+The public entry points are [`cmp.Keygen`](../protocols/cmp/cmp.go) and [`cmp.Sign`](../protocols/cmp/cmp.go). The supported group is secp256k1. Both functions return a `protocol.StartFunc` for use with `protocol.NewMultiHandler`.
 
 ## Protocol model
 
 Let $P_1, \ldots, P_n$ be the participants and let $t$ be the maximum number of corrupt participants tolerated. Key generation gives each $P_i$ a Shamir share of one ECDSA key. Any signing set $S$ with $|S| > t$ can produce a signature.
 
-Each execution is bound to a session context containing the application-provided session ID, protocol identifier, curve, participant set, and threshold. Signing also binds the stored configuration and message digest into that context. The session ID must be shared by the participants, contain at least 16 bytes, and be unique to the execution.
+Each execution is bound to a session context containing the application-provided session ID, protocol identifier, curve, participant set, and threshold. Signing also binds the message digest and the configuration's common transcript—the threshold, party IDs, RID, and public parameters—into that context. The session ID must be shared by the participants, contain at least 16 bytes, and be unique to the execution.
 
 There is no central coordinator. Every participant runs the same state machine, sends point-to-point or broadcast messages, verifies the messages it receives, and independently computes the final result. Broadcast consistency is described in [Broadcast.md](Broadcast.md).
 
@@ -30,7 +30,7 @@ Successful key generation returns one [`cmp.Config`](../protocols/cmp/config/con
 
 The group public key is reconstructed from the public ECDSA shares with Lagrange interpolation. Configurations contain secret material and must be stored with confidentiality and integrity protection. Initialize a configuration with `cmp.EmptyConfig(curve.Secp256k1{})` before unmarshaling it.
 
-The chain key enables unhardened BIP-32 derivation. `Config.DeriveBIP32(i)` derives the same child adjustment at every participant and applies it to the private and public ECDSA shares without reconstructing the signing key.
+The chain key enables unhardened BIP-32 derivation. `Config.DeriveBIP32(i)` derives the same child adjustment at every participant and applies it to the private and public ECDSA shares without reconstructing the signing key. An index greater than or equal to `2^31` is a hardened index and causes the method to panic.
 
 ## Distributed key generation
 
@@ -66,17 +66,16 @@ Each participant generates:
 
 - its degree-$t$ VSS polynomial and coefficient commitments;
 - a Paillier secret key and corresponding Pedersen parameters;
+- a proof $\Pi_{\mathsf{prm}}$ that the Pedersen parameters are correctly related;
 - an ElGamal key pair;
 - random contributions $\mathsf{rid}_i$ and $c_i$ to the joint RID and chain key;
 - randomness for a Schnorr proof of knowledge of its eventual ECDSA share.
 
-It broadcasts a commitment to the RID, chain-key contribution, VSS commitments, Schnorr commitment, ElGamal public key, and public Paillier/Pedersen parameters.
+It broadcasts a commitment to the RID, chain-key contribution, VSS commitments, Schnorr commitment, ElGamal public key, public Paillier/Pedersen parameters, and $\Pi_{\mathsf{prm}}$. Committing to this proof before seeing the other openings follows the October 2021 revision.
 
 ### Round 2: open commitments
 
-After collecting every commitment, each participant broadcasts the committed values and decommitment. Recipients validate the commitment opening, VSS degree, Paillier modulus, Pedersen parameters, ElGamal point, and all curve points.
-
-Curve points, VSS degrees, and public parameters are validated before they are stored. In particular, the ElGamal public key must not be the identity and every received point must belong to the curve's prime-order subgroup.
+After collecting every commitment, each participant broadcasts the committed values, $\Pi_{\mathsf{prm}}$, and decommitment. Recipients validate the RID and chain-key contributions, VSS degree and subgroup membership, Paillier modulus, Pedersen parameters, and ElGamal public key; verify $\Pi_{\mathsf{prm}}$; and then verify the commitment opening. The ElGamal key must be non-identity and in the curve's prime-order subgroup. No participant produces a factor proof using a peer's Pedersen parameters until this verification has passed.
 
 ### Round 3: prove parameters and distribute shares
 
@@ -88,24 +87,28 @@ $$
 c = \bigoplus_i c_i.
 $$
 
-Each participant broadcasts proofs for its Paillier modulus and Pedersen parameters. For every other participant $P_j$, it also sends:
+Each participant broadcasts a proof for its Paillier modulus. For every other participant $P_j$, it also sends:
 
 - an encryption under $P_j$'s Paillier key of $f_i(j)$; and
-- a factorization proof constructed with $P_j$'s Pedersen parameters.
+- a factorization proof constructed with $P_j$'s verified Pedersen parameters and transcript-bound to the encrypted share.
 
 ### Round 4: validate and combine shares
 
-Each recipient verifies the proofs, validates the ciphertext, decrypts its share, checks its range, and verifies
+Each recipient verifies the proofs, validates the ciphertext, decrypts its share together with its Paillier randomness, checks its range, and verifies
 
 $$
 f_i(j)G = F_i(j).
 $$
 
-It then sums the received shares, constructs the group public key and all verification shares, and builds its `cmp.Config`. Finally, it broadcasts the response for a Schnorr proof of knowledge of its resulting ECDSA share. The proof transcript is bound to the complete configuration.
+If the plaintext is out of range or does not satisfy this equation, the recipient reliably broadcasts a public `Dec Error` containing the accused sender, ciphertext, ciphertext-bound factor proof, plaintext, and Paillier randomness, and aborts. Every other participant can authenticate the ciphertext's sender, verify its opening, reproduce the failed range/VSS check, and assign the same culprit.
+
+Figure 6 of the 2021 paper lists the sender, ciphertext, plaintext, and Paillier opening in `Dec Error`. This implementation additionally binds the sender's $\Pi_{\mathsf{fac}}$ challenge to that ciphertext and includes the proof in the report. The protocol message API does not itself provide a transferable signature for point-to-point messages, so this binding supplies the sender authentication that a third-party verifier needs; it does not add a refresh or presigning feature.
+
+Otherwise, it sums the received shares, constructs the group public key and all verification shares, and builds its `cmp.Config`. Finally, it broadcasts the response for a Schnorr proof of knowledge of its resulting ECDSA share. The proof transcript is bound to the configuration's common transcript: its threshold, party IDs, RID, and public parameters.
 
 ### Round 5: confirm the result
 
-Every participant verifies every final Schnorr response against the corresponding public share. If all proofs pass, the local configuration is returned.
+Every participant verifies either a final Schnorr response or a public `Dec Error` from each peer. A valid `Dec Error` aborts with its proven sender as culprit; an invalid report blames the reporting party. If all Schnorr proofs pass, the local configuration is returned.
 
 ## Threshold signing
 
@@ -179,4 +182,4 @@ The resulting [`ecdsa.Signature`](../pkg/ecdsa/signature.go) supports the librar
 
 ## Validation and aborts
 
-Incoming ciphertexts, moduli, proof values, scalars, points, polynomial degrees, and serialized configurations are validated before use. A message that fails local cryptographic verification aborts the handler and identifies its sender as a culprit. A broadcast-consistency failure also aborts, but cannot be attributed to one party without additional evidence from the transport.
+The round handlers perform the structural and cryptographic checks described above before accepting peer data. If a sender-specific check fails, the handler aborts and records that sender in `protocol.Error.Culprits`. A valid public `Dec Error` instead records the sender proven by the evidence, not the party forwarding the report. A broadcast-transcript mismatch also aborts, but cannot be attributed to one party without additional evidence from the transport. `Config.UnmarshalBinary` separately validates its secret and public key material, thresholds, party-ID evaluation points, RID, chain key, and Paillier/Pedersen parameters; successful unmarshaling does not replace storage authentication.

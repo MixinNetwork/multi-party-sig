@@ -13,7 +13,7 @@ Threshold signing must remain safe when a signing set contains a dishonest major
 
 [`protocol.Message`](../pkg/protocol/message.go) contains the session identifier, sender, optional recipient, protocol identifier, round number, encoded content, broadcast flag, and the verification hash for the preceding broadcast round.
 
-- A point-to-point message has `Broadcast == false` and is normally addressed to one participant through `To`.
+- A point-to-point protocol message has `Broadcast == false` and is addressed to one participant through `To`.
 - A broadcast message has `Broadcast == true`, an empty `To` field, and must be delivered to every other participant.
 - An abort notification uses round number 0 and informs peers that the sender's local handler stopped with an error.
 
@@ -33,12 +33,14 @@ The handler implements the broadcast-with-abort technique used by Goldwasser and
    $$
 
 3. Every message it sends in the following round includes $V$ in `BroadcastVerification`.
-4. After receiving the following-round messages, it compares every attached value with its own $V$.
+4. When a following-round message is accepted, the handler first compares its attached value with its own $V$, before running any round-specific content verification. It compares all attached values with its own $V$ again before finalizing the round.
 5. If any value differs, the handler aborts with a broadcast-verification error.
 
 The transcript hash uses the sorted participant order and hashes the complete protocol messages, including their session and round headers. A participant that sends inconsistent broadcast values therefore causes honest recipients to compute different verification hashes and abort in the next round.
 
-This mechanism guarantees consistency or abort; it does not guarantee delivery or fairness. A malicious participant can deliberately force an abort by equivocating or withholding a message.
+The per-message comparison in step 4 matters for fault attribution: round-specific content checks (for example, verifying a FROST signature share) are evaluated under the receiver's local view of the previous broadcast round, so a message from an honest sender can fail them when an equivocator has split the views. Checking the echo hash first turns that case into an unattributable abort instead of blaming the honest sender.
+
+This check applies when a broadcast round is followed by another round that sends messages. A final broadcast has no later message on which to carry and compare $V$, so `Message.Broadcast` remains a transport-level reliable-broadcast requirement. Where the comparison runs, the mechanism provides consistency or abort; it does not guarantee delivery or fairness. A malicious participant can deliberately force an abort by equivocating or prevent progress by withholding a message. The handler has no built-in timeout, so timeout and cancellation policies belong to the application.
 
 ## Fault attribution
 
@@ -58,4 +60,4 @@ For every protocol execution, the application must:
 - preserve authentication, integrity, and confidentiality as required;
 - continue processing until `Handler.Listen()` closes, or call `Handler.Stop()` when cancelling locally.
 
-A transport with a native reliable-broadcast primitive can use it for messages marked `Broadcast`. Over authenticated point-to-point channels, delivering the same outgoing message to every recipient allows the handler's echo check to detect equivocation.
+A transport with a native reliable-broadcast primitive can use it for messages marked `Broadcast`. When such messages are fanned out over authenticated point-to-point channels, the handler's next-round echo check detects equivocation in the rounds where a comparison is available.

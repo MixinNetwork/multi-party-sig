@@ -4,7 +4,7 @@
 
 A Go implementation of multi-party threshold signing for:
 
-- ECDSA, using the CGGMP protocol by [Canetti et al.](https://eprint.iacr.org/2021/060).
+- ECDSA, using the [October 2021 CGGMP protocol](https://eprint.iacr.org/archive/2021/060/1634824619.pdf) by Canetti et al.
   The implementation provides distributed key generation and threshold signing on secp256k1.
   Implementation details are documented in [docs/CMP.md](docs/CMP.md).
 - Schnorr signatures, using [FROST](https://eprint.iacr.org/2020/852.pdf).
@@ -16,7 +16,7 @@ A Go implementation of multi-party threshold signing for:
 ## Features
 
 - **[BIP-32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki) key derivation.**
-  [`cmp.Config.DeriveBIP32`](protocols/cmp/config/config.go), [`frost.Config.DeriveChild`](protocols/frost/keygen/config.go), and [`frost.TaprootConfig.DeriveChild`](protocols/frost/keygen/config.go) derive new shares without reconstructing the private key. Only unhardened secp256k1 derivation is supported.
+  [`cmp.Config.DeriveBIP32`](protocols/cmp/config/config.go), [`frost.Config.DeriveChild`](protocols/frost/keygen/config.go), and [`frost.TaprootConfig.DeriveChild`](protocols/frost/keygen/config.go) derive new shares without reconstructing the private key. Only unhardened secp256k1 derivation is supported; on a valid secp256k1 configuration, passing an index greater than or equal to `2^31` panics.
 - **Constant-time modular arithmetic.**
   CMP's Paillier operations and related zero-knowledge proofs use [saferith](https://github.com/cronokirby/saferith) to mitigate timing leaks.
 - **Parallel CMP operations.**
@@ -50,16 +50,16 @@ The `variant` passed to `frost.Sign` is defined in [`protocols/frost/sign`](prot
 | --- | --- | --- |
 | `sign.ProtocolDefault` | secp256k1 or Edwards25519 | `*frost.Signature`, verified with `Signature.Verify`. |
 | `sign.ProtocolEd25519SHA512` | Edwards25519 | `*frost.Signature` whose 64-byte serialization is Ed25519-compatible; verify with `Signature.VerifyEd25519` or `crypto/ed25519`. |
-| `sign.ProtocolMixinPublic` | Edwards25519 | `*frost.Signature` for Mixin's adjusted-public-key signing flow. |
+| `sign.ProtocolMixinPublic` | Edwards25519 | `*frost.Signature` for Mixin's adjusted-public-key signing flow; the input format is described in [docs/FROST.md](docs/FROST.md#mixin-adjusted-public-key). |
 | `sign.ProtocolTaproot` | secp256k1 with a BIP-340-normalized key | `taproot.Signature`; this is the internal variant used by `frost.SignTaproot`, which applications should normally call instead. |
 
 The main arguments have the following requirements:
 
-- [`party.ID`](pkg/party/id.go) is a string identifying a participant. IDs must be unique and must map to distinct, non-zero curve scalars. Every party must use the same participant and signer sets.
+- [`party.ID`](pkg/party/id.go) is a string identifying a participant. IDs must be unique and must map to distinct, non-zero curve scalars. Every party must use the same participant and signer sets. During signing, the signer set must contain the local config's ID and only IDs represented in that config.
 - [`curve.Curve`](pkg/math/curve/curve.go) selects the group. CMP supports [`curve.Secp256k1`](pkg/math/curve/secp256k1.go); FROST supports secp256k1 and [`curve.Edwards25519`](pkg/math/curve/edwards25519.go).
 - `threshold` is the maximum number of corrupt participants tolerated. A signing set must contain at least `threshold + 1` participants.
 - [`*pool.Pool`](pkg/pool/pool.go) is optional and used only by CMP's top-level API. `pool.NewPool(0)` uses one worker per available CPU. A pool must not be used concurrently by multiple protocol executions, and it must be closed with `TearDown`.
-- `messageHash` is supplied by the application. For ECDSA and BIP-340, pass the digest required by the surrounding protocol.
+- Despite the parameter name `messageHash`, its interpretation depends on the protocol. CMP rejects an empty input and applies the ECDSA digest-to-integer conversion. Native FROST incorporates the supplied message or digest into its challenge. Taproot passes the bytes to the BIP-340 challenge, whose standard message input is 32 bytes. The Ed25519-compatible variant treats the bytes as the message itself. The Mixin variant expects a 32-byte canonical Edwards25519 scalar followed by the message.
 
 ### Creating a handler
 
@@ -81,7 +81,7 @@ defer pl.TearDown()
 start := cmp.Keygen(group, selfID, participants, threshold, pl)
 handler, err := protocol.NewMultiHandler(start, sessionID)
 if err != nil {
-	panic(err) // invalid participants, threshold, curve, or session ID
+	panic(err) // invalid participants, threshold, group, or session ID
 }
 ```
 
@@ -128,8 +128,8 @@ result, err := handler.Result()
 if err != nil {
 	var protocolError protocol.Error
 	if errors.As(err, &protocolError) {
-		// protocolError.Culprits contains any parties whose misbehavior was
-		// locally verified. It may be empty when attribution is impossible.
+		// Culprits contains parties associated with a locally detected failure.
+		// It is empty when the handler cannot attribute the failure.
 	}
 	return
 }
@@ -137,24 +137,27 @@ if err != nil {
 config := result.(*cmp.Config)
 ```
 
-Call `Handler.Stop` to cancel an unfinished local execution and notify the other parties.
+The handler has no network timeout. Call `Handler.Stop` to cancel an unfinished local execution—for example, after an application timeout—and notify the other parties.
 
 ### Configuration storage
 
 The `Config` values returned by key generation contain secret key shares. Store them with confidentiality and integrity protection; in particular, authenticate serialized configurations with a MAC or signature so that tampering is detected.
 
-Configurations implement binary marshaling. Before unmarshaling a generic CMP or FROST configuration, initialize its curve-dependent fields with `cmp.EmptyConfig(group)` or `frost.EmptyConfig(group)`.
+Configurations implement binary marshaling. Before unmarshaling a generic CMP or FROST configuration, initialize its curve-dependent fields with `cmp.EmptyConfig(group)` or `frost.EmptyConfig(group)`. A `frost.TaprootConfig` instead needs an initialized private-share scalar:
+
+```go
+config := &frost.TaprootConfig{
+	PrivateShare: curve.Secp256k1{}.NewScalar(),
+}
+err := config.UnmarshalBinary(data)
+```
 
 ### Network requirements
 
 Point-to-point protocol messages require authentication, integrity, and confidentiality. The application is responsible for delivering each message to all participants for which [`Message.IsFor`](pkg/protocol/message.go) returns `true`.
 
-Messages with `Message.Broadcast == true` require reliable broadcast, meaning all honest participants agree on the value sent by each party. The handler includes the [Goldwasser-Lindell echo-broadcast](https://eprint.iacr.org/2002/040) consistency check and aborts if participants received inconsistent broadcasts. When that check fails, the library cannot identify the culprit without additional guarantees from the transport.
+Treat every message with `Message.Broadcast == true` as a reliable-broadcast requirement: deliver it to every other participant, with all honest recipients agreeing on the sender's value. The handler carries a [Goldwasser-Lindell echo-broadcast](https://eprint.iacr.org/2002/040) transcript hash into the next message-bearing round and aborts on a mismatch. A final broadcast has no later round in which to compare that hash, so the flag remains a transport requirement rather than a guarantee supplied by the handler. A transcript mismatch cannot be attributed without additional evidence from the transport.
 
-## Intellectual property
+## License
 
-This code is copyright (c) Adrian Hamelink and Taurus SA, 2021, and under Apache 2.0 license.
-
-On potential patents: the company that sponsored the development of the CMP
-protocol [stated](https://apnews.com/press-release/pr-newswire/26aab91e254bc254d331ceafc20b9859)
-that it "will not be applying for patents on this technology."
+This project is licensed under the [Apache License 2.0](LICENCE).

@@ -17,7 +17,7 @@ Let $P_1, \ldots, P_n$ be the key holders and let $t$ be the maximum number of c
 
 Every participant runs the same protocol state machine. Commitments and response shares are broadcast directly among the signers, so each participant verifies the other signers and independently constructs the result. Messages marked for broadcast use the consistency mechanism described in [Broadcast.md](Broadcast.md).
 
-The session context binds the protocol identifier, session ID, curve, participant set, and threshold. The signing calculations separately bind the group public key and application input through the binding-factor and challenge hashes. Session IDs must contain at least 16 bytes and be unique to each execution.
+The session context binds the protocol identifier, session ID, curve, participant set, and threshold. During signing, nonce derivation also includes that context and the application input, while the binding-factor and challenge hashes include the group public key and application input. Session IDs must contain at least 16 bytes and be unique to each execution.
 
 ## Distributed key generation
 
@@ -65,7 +65,7 @@ Y = \sum_i a_{i,0}G,
 c = \bigoplus_i c_i.
 $$
 
-The result is a [`frost.Config`](../protocols/frost/keygen/config.go), or a `frost.TaprootConfig` when using the Taproot entry point.
+The handler result is a [`*frost.Config`](../protocols/frost/keygen/config.go), or a `*frost.TaprootConfig` when using the Taproot entry point.
 
 ## Three-round signing
 
@@ -79,9 +79,9 @@ Each signer generates two nonces $d_i$ and $e_i$ with a hedged construction:
 
 $$
 \begin{aligned}
-h_i &\leftarrow \mathrm{BLAKE3\text{-}KDF}(s_i), \\
+h_i &\leftarrow \mathrm{BLAKE3\text{-}KDF}(\mathrm{enc}(s_i)), \\
 a_i &\xleftarrow{R} \{0,1\}^{256}, \\
-(d_i,e_i) &\leftarrow \mathrm{HashToScalar}(\mathrm{BLAKE3}_{h_i}(\mathsf{SSID} \mathbin\| m \mathbin\| a_i)).
+(d_i,e_i) &\leftarrow \mathrm{ExpandToNonzeroScalars}(\mathrm{BLAKE3}_{h_i}(\mathsf{SSID} \mathbin\| m \mathbin\| a_i)).
 \end{aligned}
 $$
 
@@ -173,7 +173,7 @@ and `frost.SignTaproot` returns a 64-byte `taproot.Signature` containing $x(R) \
 
 ### Mixin adjusted public key
 
-`sign.ProtocolMixinPublic` requires Edwards25519. The first 32 input bytes encode an adjustment scalar $m_s$; the remaining bytes are the signed message $m$. Signing uses the effective public key
+`sign.ProtocolMixinPublic` requires Edwards25519. The first 32 input bytes must be a canonical encoding of an adjustment scalar $m_s$; the remaining bytes are the signed message $m$. Signing uses the effective public key
 
 $$
 P = Y + m_sG
@@ -187,8 +187,19 @@ Every key-generation result includes a jointly generated chain key. `Config.Deri
 
 `TaprootConfig.Derive` and `TaprootConfig.DeriveChild` apply the same adjustment and then normalize the derived key back to its even-y representative. Including $Y$ in the signing binding-factor hash ensures signatures are bound to the selected derived key.
 
+On valid secp256k1 configurations, both `DeriveChild` methods panic for a hardened index greater than or equal to `2^31`.
+
 ## Point and configuration validation
 
-Edwards25519 has cofactor 8, so decoded points may contain small-order components. Key generation, signing, and configuration unmarshaling require externally supplied points to lie in the prime-order subgroup. Group public keys, verification shares, and nonce commitments must also be non-identity points.
+Edwards25519 has cofactor 8, so decoded points may contain small-order components. Key generation rejects VSS commitments outside the prime-order subgroup, and signing rejects identity or non-prime-order nonce commitments. Generic `Config.UnmarshalBinary` rejects identity or non-prime-order group public keys and verification shares.
 
-Configurations contain private shares and must be stored confidentially with integrity protection. Use `frost.EmptyConfig(group)` before unmarshaling a generic configuration so its curve-dependent fields are initialized.
+Configurations contain private shares and must be stored confidentially with integrity protection. Use `frost.EmptyConfig(group)` before unmarshaling a generic configuration so its curve-dependent fields are initialized. To unmarshal a secp256k1-only `TaprootConfig`, initialize its private share first:
+
+```go
+config := &frost.TaprootConfig{
+	PrivateShare: curve.Secp256k1{}.NewScalar(),
+}
+err := config.UnmarshalBinary(data)
+```
+
+`TaprootConfig.UnmarshalBinary` reconstructs the verification-share map, and `frost.SignTaproot` checks that the x-only public key lifts to a secp256k1 point when the signing handler starts. Unmarshaling validates an encoding; it does not authenticate the stored configuration.
