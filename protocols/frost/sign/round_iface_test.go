@@ -268,6 +268,14 @@ func testRound3AbortOnce(t *testing.T, variant, session int) {
 	require.IsType(t, &round.Abort{}, next, "expected an abort when the signature fails to verify")
 }
 
+func testVerificationShares(group curve.Curve, partyIDs []party.ID) *party.PointMap {
+	shares := make(map[party.ID]curve.Point, len(partyIDs))
+	for _, id := range partyIDs {
+		shares[id] = sample.Scalar(tR, group).ActOnBase()
+	}
+	return party.NewPointMap(shares)
+}
+
 func TestStartSignCommon_MixinPublicShortMessage(t *testing.T) {
 	group := curve.Edwards25519{}
 	partyIDs := test.PartyIDs(3)
@@ -278,7 +286,7 @@ func TestStartSignCommon_MixinPublicShortMessage(t *testing.T) {
 		PrivateShare:       sample.Scalar(tR, group),
 		PublicKey:          secret.ActOnBase(),
 		ChainKey:           make([]byte, 32),
-		VerificationShares: party.EmptyPointMap(group),
+		VerificationShares: testVerificationShares(group, partyIDs),
 	}
 
 	// MixinPublic requires at least 32 bytes of message
@@ -301,7 +309,7 @@ func TestStartSignCommon_InvalidSession(t *testing.T) {
 		PrivateShare:       sample.Scalar(tR, group),
 		PublicKey:          secret.ActOnBase(),
 		ChainKey:           make([]byte, 32),
-		VerificationShares: party.EmptyPointMap(group),
+		VerificationShares: testVerificationShares(group, partyIDs),
 	}
 
 	// the self ID must be part of the signers
@@ -324,7 +332,7 @@ func TestRound1Finalize_OutChanFull(t *testing.T) {
 		PrivateShare:       sample.Scalar(tR, group),
 		PublicKey:          secret.ActOnBase(),
 		ChainKey:           make([]byte, 32),
-		VerificationShares: party.EmptyPointMap(group),
+		VerificationShares: testVerificationShares(group, partyIDs),
 	}
 	r1, err := StartSignCommon(config, partyIDs, []byte("m"), ProtocolDefault)(test.SessionID("full"))
 	require.NoError(t, err)

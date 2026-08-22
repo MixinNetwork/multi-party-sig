@@ -27,6 +27,37 @@ const (
 
 func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []byte, protocol int) protocol.StartFunc {
 	return func(sessionID []byte) (round.Session, error) {
+		if result == nil || result.PublicKey == nil {
+			return nil, fmt.Errorf("sign.StartSignCommon: missing group public key")
+		}
+		// The group public key is the root of trust for this signing session:
+		// an identity key makes signatures trivially forgeable, and a point
+		// outside the prime-order subgroup breaks the verification equation
+		// on cofactored curves.
+		if result.PublicKey.IsIdentity() {
+			return nil, fmt.Errorf("sign.StartSignCommon: group public key is the identity point")
+		}
+		if !result.PublicKey.IsInPrimeOrderGroup() {
+			return nil, fmt.Errorf("sign.StartSignCommon: group public key is not in the prime-order subgroup")
+		}
+		// Every signer needs a verification share: round 3 verifies each
+		// signature share against it, and a missing entry would cause a nil
+		// point dereference mid-protocol.
+		if result.VerificationShares == nil {
+			return nil, fmt.Errorf("sign.StartSignCommon: missing verification shares")
+		}
+		for _, id := range signers {
+			v, ok := result.VerificationShares.Points[id]
+			if !ok || v == nil {
+				return nil, fmt.Errorf("sign.StartSignCommon: missing verification share for party %q", id)
+			}
+			if v.IsIdentity() {
+				return nil, fmt.Errorf("sign.StartSignCommon: verification share for party %q is the identity point", id)
+			}
+			if !v.IsInPrimeOrderGroup() {
+				return nil, fmt.Errorf("sign.StartSignCommon: verification share for party %q is not in the prime-order subgroup", id)
+			}
+		}
 		info := round.Info{
 			FinalRoundNumber: protocolRounds,
 			SelfID:           result.ID,
@@ -73,9 +104,8 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 				return nil, fmt.Errorf("sign.StartSignCommon: %d", len(r.M))
 			}
 			r.mS = result.Curve().NewScalar()
-			err = r.mS.UnmarshalBinary(r.M[:32])
-			if err != nil {
-				panic(err)
+			if err = r.mS.UnmarshalBinary(r.M[:32]); err != nil {
+				return nil, fmt.Errorf("sign.StartSignCommon: invalid mixin scalar: %w", err)
 			}
 			r.M = r.M[32:]
 		}
