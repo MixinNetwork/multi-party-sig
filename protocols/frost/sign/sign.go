@@ -1,6 +1,7 @@
 package sign
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/MixinNetwork/multi-party-sig/common/round"
@@ -30,6 +31,20 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 		if result == nil || result.PublicKey == nil {
 			return nil, fmt.Errorf("sign.StartSignCommon: missing group public key")
 		}
+		group := result.PublicKey.Curve()
+		if group == nil {
+			return nil, fmt.Errorf("sign.StartSignCommon: group public key has no curve")
+		}
+		if result.PrivateShare == nil {
+			return nil, fmt.Errorf("sign.StartSignCommon: missing local private share")
+		}
+		privateGroup := result.PrivateShare.Curve()
+		if privateGroup == nil {
+			return nil, fmt.Errorf("sign.StartSignCommon: local private share has no curve")
+		}
+		if privateGroup.Name() != group.Name() {
+			return nil, fmt.Errorf("sign.StartSignCommon: local private share has curve %s, expected %s", privateGroup.Name(), group.Name())
+		}
 		// The group public key is the root of trust for this signing session:
 		// an identity key makes signatures trivially forgeable, and a point
 		// outside the prime-order subgroup breaks the verification equation
@@ -51,6 +66,13 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 			if !ok || v == nil {
 				return nil, fmt.Errorf("sign.StartSignCommon: missing verification share for party %q", id)
 			}
+			verificationGroup := v.Curve()
+			if verificationGroup == nil {
+				return nil, fmt.Errorf("sign.StartSignCommon: verification share for party %q has no curve", id)
+			}
+			if verificationGroup.Name() != group.Name() {
+				return nil, fmt.Errorf("sign.StartSignCommon: verification share for party %q has curve %s, expected %s", id, verificationGroup.Name(), group.Name())
+			}
 			if v.IsIdentity() {
 				return nil, fmt.Errorf("sign.StartSignCommon: verification share for party %q is the identity point", id)
 			}
@@ -63,7 +85,7 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 			SelfID:           result.ID,
 			PartyIDs:         signers,
 			Threshold:        result.Threshold,
-			Group:            result.PublicKey.Curve(),
+			Group:            group,
 		}
 		switch protocol {
 		case ProtocolTaproot:
@@ -90,6 +112,21 @@ func StartSignCommon(result *keygen.Config, signers []party.ID, messageHash []by
 		helper, err := round.NewSession(info, sessionID, nil)
 		if err != nil {
 			return nil, fmt.Errorf("sign.StartSign: %w", err)
+		}
+		// Reject a corrupted or mismatched local key share before round 1 creates
+		// and broadcasts nonce commitments. Peers would eventually reject the
+		// resulting signature share, but only after the whole session had started.
+		localVerificationShare := result.VerificationShares.Points[result.ID]
+		privateCommitment, err := result.PrivateShare.ActOnBase().MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("sign.StartSignCommon: encode local private share commitment: %w", err)
+		}
+		verificationCommitment, err := localVerificationShare.MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("sign.StartSignCommon: encode local verification share: %w", err)
+		}
+		if !bytes.Equal(privateCommitment, verificationCommitment) {
+			return nil, fmt.Errorf("sign.StartSignCommon: local private share does not match verification share for party %q", result.ID)
 		}
 		r := &round1{
 			Helper:  helper,

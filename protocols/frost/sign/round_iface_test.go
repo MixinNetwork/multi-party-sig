@@ -3,6 +3,7 @@ package sign
 import (
 	"encoding/hex"
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/MixinNetwork/multi-party-sig/common/round"
@@ -268,25 +269,128 @@ func testRound3AbortOnce(t *testing.T, variant, session int) {
 	require.IsType(t, &round.Abort{}, next, "expected an abort when the signature fails to verify")
 }
 
-func testVerificationShares(group curve.Curve, partyIDs []party.ID) *party.PointMap {
+func testVerificationShares(group curve.Curve, partyIDs []party.ID, selfID party.ID, privateShare curve.Scalar) *party.PointMap {
 	shares := make(map[party.ID]curve.Point, len(partyIDs))
 	for _, id := range partyIDs {
 		shares[id] = sample.Scalar(tR, group).ActOnBase()
 	}
+	shares[selfID] = privateShare.ActOnBase()
 	return party.NewPointMap(shares)
+}
+
+func scalarFromUint64(group curve.Curve, value uint64) curve.Scalar {
+	return group.NewScalar().SetNat(new(saferith.Nat).SetUint64(value))
+}
+
+func localPrivateShareTestConfig(group curve.Curve, partyIDs []party.ID) *keygen.Config {
+	privateShare := scalarFromUint64(group, 5)
+	verificationShares := make(map[party.ID]curve.Point, len(partyIDs))
+	for i, id := range partyIDs {
+		verificationShares[id] = scalarFromUint64(group, uint64(i+5)).ActOnBase()
+	}
+	return &keygen.Config{
+		ID:                 partyIDs[0],
+		Threshold:          len(partyIDs) - 1,
+		PrivateShare:       privateShare,
+		PublicKey:          scalarFromUint64(group, 11).ActOnBase(),
+		ChainKey:           make([]byte, 32),
+		VerificationShares: party.NewPointMap(verificationShares),
+	}
+}
+
+func TestStartSignCommon_LocalPrivateShareValidation(t *testing.T) {
+	for _, group := range []curve.Curve{curve.Secp256k1{}, curve.Edwards25519{}} {
+		group := group
+		t.Run(group.Name(), func(t *testing.T) {
+			partyIDs := test.PartyIDs(3)
+
+			t.Run("valid", func(t *testing.T) {
+				_, err := StartSignCommon(localPrivateShareTestConfig(group, partyIDs), partyIDs, []byte("message"), ProtocolDefault)(test.SessionID("local-share-valid"))
+				require.NoError(t, err)
+			})
+
+			t.Run("missing", func(t *testing.T) {
+				config := localPrivateShareTestConfig(group, partyIDs)
+				config.PrivateShare = nil
+				_, err := StartSignCommon(config, partyIDs, []byte("message"), ProtocolDefault)(test.SessionID("local-share-missing"))
+				assert.ErrorContains(t, err, "missing local private share")
+			})
+
+			t.Run("mismatch", func(t *testing.T) {
+				config := localPrivateShareTestConfig(group, partyIDs)
+				config.PrivateShare = scalarFromUint64(group, 6)
+				_, err := StartSignCommon(config, partyIDs, []byte("message"), ProtocolDefault)(test.SessionID("local-share-mismatch"))
+				assert.ErrorContains(t, err, "does not match verification share")
+			})
+
+			t.Run("derived", func(t *testing.T) {
+				derived, err := localPrivateShareTestConfig(group, partyIDs).Derive(scalarFromUint64(group, 9), nil)
+				require.NoError(t, err)
+				_, err = StartSignCommon(derived, partyIDs, []byte("message"), ProtocolDefault)(test.SessionID("local-share-derived"))
+				require.NoError(t, err)
+			})
+		})
+	}
+}
+
+func TestStartSignCommon_LocalPrivateShareCurveValidation(t *testing.T) {
+	group := curve.Secp256k1{}
+	partyIDs := test.PartyIDs(2)
+	privateShare := scalarFromUint64(group, 5)
+	config := &keygen.Config{
+		ID:           partyIDs[0],
+		Threshold:    1,
+		PrivateShare: scalarFromUint64(curve.Edwards25519{}, 5),
+		PublicKey:    scalarFromUint64(group, 11).ActOnBase(),
+		VerificationShares: party.NewPointMap(map[party.ID]curve.Point{
+			partyIDs[0]: privateShare.ActOnBase(),
+			partyIDs[1]: scalarFromUint64(group, 6).ActOnBase(),
+		}),
+	}
+	_, err := StartSignCommon(config, partyIDs, []byte("message"), ProtocolDefault)(test.SessionID("local-share-curve"))
+	assert.ErrorContains(t, err, "local private share has curve")
+
+	config.PrivateShare = privateShare
+	config.VerificationShares.Points[partyIDs[0]] = scalarFromUint64(curve.Edwards25519{}, 5).ActOnBase()
+	_, err = StartSignCommon(config, partyIDs, []byte("message"), ProtocolDefault)(test.SessionID("verification-share-curve"))
+	assert.ErrorContains(t, err, "verification share for party \"a\" has curve")
+}
+
+func TestStartSignCommon_LocalPrivateShareValidationConcurrent(t *testing.T) {
+	group := curve.Secp256k1{}
+	partyIDs := test.PartyIDs(3)
+	config := localPrivateShareTestConfig(group, partyIDs)
+
+	const sessionCount = 32
+	errs := make(chan error, sessionCount)
+	var wg sync.WaitGroup
+	for i := range sessionCount {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := StartSignCommon(config, partyIDs, []byte("message"), ProtocolDefault)(test.SessionID(fmt.Sprintf("local-share-concurrent-%d", i)))
+			errs <- err
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
 }
 
 func TestStartSignCommon_MixinPublicShortMessage(t *testing.T) {
 	group := curve.Edwards25519{}
 	partyIDs := test.PartyIDs(3)
 	secret := sample.Scalar(tR, group)
+	privateShare := sample.Scalar(tR, group)
 	config := &keygen.Config{
 		ID:                 partyIDs[0],
 		Threshold:          2,
-		PrivateShare:       sample.Scalar(tR, group),
+		PrivateShare:       privateShare,
 		PublicKey:          secret.ActOnBase(),
 		ChainKey:           make([]byte, 32),
-		VerificationShares: testVerificationShares(group, partyIDs),
+		VerificationShares: testVerificationShares(group, partyIDs, partyIDs[0], privateShare),
 	}
 
 	// MixinPublic requires at least 32 bytes of message
@@ -303,13 +407,14 @@ func TestStartSignCommon_InvalidSession(t *testing.T) {
 	group := curve.Secp256k1{}
 	partyIDs := test.PartyIDs(3)
 	secret := sample.Scalar(tR, group)
+	privateShare := sample.Scalar(tR, group)
 	config := &keygen.Config{
 		ID:                 "zz", // not in the signers list
 		Threshold:          2,
-		PrivateShare:       sample.Scalar(tR, group),
+		PrivateShare:       privateShare,
 		PublicKey:          secret.ActOnBase(),
 		ChainKey:           make([]byte, 32),
-		VerificationShares: testVerificationShares(group, partyIDs),
+		VerificationShares: testVerificationShares(group, partyIDs, partyIDs[0], privateShare),
 	}
 
 	// the self ID must be part of the signers
@@ -326,13 +431,14 @@ func TestRound1Finalize_OutChanFull(t *testing.T) {
 	group := curve.Secp256k1{}
 	partyIDs := test.PartyIDs(3)
 	secret := sample.Scalar(tR, group)
+	privateShare := sample.Scalar(tR, group)
 	config := &keygen.Config{
 		ID:                 partyIDs[0],
 		Threshold:          2,
-		PrivateShare:       sample.Scalar(tR, group),
+		PrivateShare:       privateShare,
 		PublicKey:          secret.ActOnBase(),
 		ChainKey:           make([]byte, 32),
-		VerificationShares: testVerificationShares(group, partyIDs),
+		VerificationShares: testVerificationShares(group, partyIDs, partyIDs[0], privateShare),
 	}
 	r1, err := StartSignCommon(config, partyIDs, []byte("m"), ProtocolDefault)(test.SessionID("full"))
 	require.NoError(t, err)

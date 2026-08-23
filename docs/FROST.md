@@ -193,6 +193,8 @@ On valid secp256k1 configurations, both `DeriveChild` methods panic for a harden
 
 Edwards25519 has cofactor 8, so decoded points may contain small-order components. Key generation rejects VSS commitments outside the prime-order subgroup, and signing rejects identity or non-prime-order nonce commitments. Generic `Config.UnmarshalBinary` rejects identity or non-prime-order group public keys and verification shares.
 
+Before creating signing nonces, the signing entry points also verify that the local private share is on the configured curve and that its public commitment matches the local entry in `VerificationShares`. A missing, corrupted, or mismatched local share therefore fails at session startup instead of causing every peer to abort in the final signing round.
+
 Configurations contain private shares and must be stored confidentially with integrity protection. Use `frost.EmptyConfig(group)` before unmarshaling a generic configuration so its curve-dependent fields are initialized. To unmarshal a secp256k1-only `TaprootConfig`, initialize its private share first:
 
 ```go

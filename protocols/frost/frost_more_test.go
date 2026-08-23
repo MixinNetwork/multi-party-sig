@@ -7,6 +7,7 @@ import (
 	"github.com/MixinNetwork/multi-party-sig/pkg/math/curve"
 	"github.com/MixinNetwork/multi-party-sig/pkg/party"
 	"github.com/MixinNetwork/multi-party-sig/protocols/frost/sign"
+	"github.com/cronokirby/saferith"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,6 +33,23 @@ func TestSignTaproot_InvalidPublicKey(t *testing.T) {
 	bad.PublicKey[31] = 5 // x = 5 is not on the curve
 	_, err := SignTaproot(bad, []party.ID{"a"}, []byte("m"))(test.SessionID("bad-taproot"))
 	assert.Error(t, err)
+}
+
+func TestSignTaproot_LocalPrivateShareMismatch(t *testing.T) {
+	group := curve.Secp256k1{}
+	verificationScalar := group.NewScalar().SetNat(new(saferith.Nat).SetUint64(1))
+	publicKey := verificationScalar.ActOnBase()
+	config := &TaprootConfig{
+		ID:           "a",
+		Threshold:    0,
+		PrivateShare: group.NewScalar().SetNat(new(saferith.Nat).SetUint64(2)),
+		PublicKey:    publicKey.XScalar().Bytes(),
+		VerificationShares: map[party.ID]curve.Point{
+			"a": publicKey,
+		},
+	}
+	_, err := SignTaproot(config, []party.ID{"a"}, []byte("message"))(test.SessionID("taproot-share-mismatch"))
+	assert.ErrorContains(t, err, "local private share does not match verification share")
 }
 
 func TestSign_UnknownVariant(t *testing.T) {
